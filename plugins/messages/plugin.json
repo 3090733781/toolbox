@@ -1,0 +1,7 @@
+{
+    "name": "留言板",
+    "version": "1.0.0",
+    "description": "访客留言反馈与管理",
+    "author": "工具箱",
+    "type": "service"
+}

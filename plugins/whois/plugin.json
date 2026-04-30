@@ -1,0 +1,7 @@
+{
+    "name": "WHOIS查询",
+    "version": "1.0.0",
+    "description": "域名注册信息查询（RDAP + WHOIS）",
+    "author": "工具箱",
+    "type": "tool"
+}

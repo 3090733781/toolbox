@@ -1,0 +1,6 @@
+﻿<?php if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') return; ?>
+<div class="card"><div class="card-title">👥 用户列表</div><div id="userList"><div class="loading"><div class="spinner"></div>加载中...</div></div></div>
+<script>
+function loadUsers(){fetch('../api/index.php?source=user_list').then(r=>r.json()).then(function(d){var el=document.getElementById('userList');if(!d.success){el.innerHTML='<div class=err>'+esc(d.error)+'</div>';return}if(!d.data.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#aaa">暂无用户</div>';return}el.innerHTML='<table><thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>注册时间</th><th>操作</th></tr></thead><tbody>'+d.data.map(function(u){return '<tr><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td><span class="badge '+(u.role==='admin'?'badge-admin':'badge-user')+'">'+(u.role==='admin'?'管理员':'用户')+'</span></td><td>'+(u.created_at||'')+'</td><td>'+(u.role!=='admin'?'<button class="btn btn-sm" onclick="if(confirm(\'确定删除用户 '+esc(u.username)+' ？\')){fetch(\'../api/index.php?source=user_delete&id='+u.id+'\').then(r=>r.json()).then(function(d2){if(d2.success)loadUsers();else alert(d2.error)}).catch(function(){alert(\'网络错误\')})}">删除</button>':'-')+'</td></tr>'}).join('')+'</tbody></table>'}).catch(function(){document.getElementById('userList').innerHTML='<div class=err>加载失败</div>'})}
+loadUsers();
+</script>
