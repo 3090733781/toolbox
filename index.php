@@ -392,14 +392,16 @@ color:#555;font-size:12px;cursor:pointer;transition:all .15s;display:flex;align-
 </div>
 
 <script>
-document.querySelectorAll('.nav-link').forEach(link => {
-link.addEventListener('click', () => {
+function switchTab(id) {
 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
 document.querySelectorAll('.tool-page').forEach(p => p.classList.remove('active'));
-link.classList.add('active');
-document.getElementById(link.dataset.page).classList.add('active');
-});
-});
+var link=document.querySelector('[data-page="'+id+'"]');if(link)link.classList.add('active');
+var page=document.getElementById(id);if(page)page.classList.add('active');
+if(id==='plugin-market'&&typeof loadPluginList==='function')loadPluginList();
+}
+document.querySelectorAll('.nav-link').forEach(function(link){link.addEventListener('click',function(){var id=this.dataset.page;switchTab(id);history.pushState(null,'','?p='+id)})});
+window.addEventListener('popstate',function(){var p=new URLSearchParams(location.search).get('p');if(p)switchTab(p)});
+(function(){var p=new URLSearchParams(location.search).get('p');if(p&&document.getElementById(p))switchTab(p)})();
 
 document.getElementById('domainInput').addEventListener('keydown', e => { if (e.key === 'Enter') doWhois(); });
 document.getElementById('ipInput').addEventListener('keydown', e => { if (e.key === 'Enter') fetchCustomIP(); });
