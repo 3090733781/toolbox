@@ -1,0 +1,11 @@
+{
+  "name": "光遇每日任务",
+  "version": "1.0.2",
+  "description": "光遇Sky每日任务攻略查询，含碎片位置、季节蜡烛、大蜡烛攻略",
+  "author": "Sky孤独旅人",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🕯️",
+  "api": ["sky_daily_fetch"],
+  "config": false
+}
