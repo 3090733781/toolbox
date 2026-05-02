@@ -32,6 +32,7 @@ function scanPlugins() {
     foreach (scandir($dir) as $name) {
         if ($name === '.' || $name === '..') continue;
         if (!is_dir($dir . $name)) continue;
+        if ($name === 'market') continue;
         $mf = $dir . $name . '/plugin.json';
         if (!file_exists($mf)) continue;
         $manifest = json_decode(file_get_contents($mf), true);

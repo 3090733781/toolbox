@@ -68,7 +68,7 @@ function jsonExit($data) {
     exit;
 }
 
-$publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','market_list'];
+$publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','market_list','plugin_install','plugin_list','plugin_delete'];
 $source = $_GET['source'] ?? 'ip-api';
 $query = $_GET['query'] ?? '';
 $cfg = loadConfig();
@@ -106,7 +106,9 @@ if (!$module && $source) {
     if (is_dir($pluginsDir)) {
         foreach (scandir($pluginsDir) as $pname) {
             if ($pname === '.' || $pname === '..') continue;
-            $mf = "{$pluginsDir}/{$pname}/plugin.json";
+            $pdir = "{$pluginsDir}/{$pname}";
+            if (!is_dir($pdir)) continue;
+            $mf = "{$pdir}/plugin.json";
             if (!file_exists($mf)) continue;
             $manifest = json_decode(file_get_contents($mf), true);
             $apis = $manifest['api'] ?? [];
