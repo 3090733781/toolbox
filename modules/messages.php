@@ -45,7 +45,7 @@ function loadMessages(){
     ).join('')
   }).catch(()=>{el.innerHTML='<div class=error>加载失败</div>'})
 }
-function checkMsgUser(){var ok=g_user&&g_user.username;document.getElementById('msgPostArea').style.display=ok?'':'none';document.getElementById('msgLoginPrompt').style.display=ok?'none':'';if(ok)document.getElementById('msgName').value=g_user.username}
-setTimeout(checkMsgUser,500);
+function checkMsgUser(){if(!g_user){setTimeout(checkMsgUser,200);return}var ok=g_user.username;document.getElementById('msgPostArea').style.display=ok?'':'none';document.getElementById('msgLoginPrompt').style.display=ok?'none':'';if(ok)document.getElementById('msgName').value=g_user.username}
+setTimeout(checkMsgUser,300);
 loadMessages();
 </script>
