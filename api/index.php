@@ -71,7 +71,7 @@ function jsonExit($data) {
     exit;
 }
 
-$publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','market_list','plugin_install','plugin_list','plugin_delete'];
+$publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','link_list','market_list','plugin_install','plugin_list','plugin_delete'];
 $source = $_GET['source'] ?? 'ip-api';
 $query = $_GET['query'] ?? '';
 $cfg = loadConfig();
@@ -94,6 +94,7 @@ $moduleMap = [
     'msg_add' => 'message', 'msg_list' => 'message', 'msg_delete' => 'message',
     'plugin_list' => 'plugin', 'plugin_delete' => 'plugin', 'plugin_install' => 'plugin',
     'cat_list' => 'category', 'cat_add' => 'category', 'cat_delete' => 'category', 'cat_mode' => 'category', 'cat_batch_mode' => 'category',
+    'link_list' => 'link', 'link_add' => 'link', 'link_delete' => 'link',
     'market_list' => 'market',
 ];
 

@@ -883,5 +883,15 @@ fetch('api/index.php?source=ip-api&query=' + encodeURIComponent(ip)).then(r => r
 }).catch(() => {});
 });
 </script>
+<div id="linkFooter" style="display:none;border-top:1px solid #e8ecf1;background:#fff;padding:20px;margin-top:40px">
+<div style="max-width:900px;margin:0 auto">
+<div style="font-size:13px;font-weight:600;color:#888;margin-bottom:12px">🔗 友情链接</div>
+<div id="linkList" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+</div>
+</div>
+<script>
+function loadFooterLinks(){fetch('api/index.php?source=link_list').then(r=>r.json()).then(function(d){if(!d.success||!d.data.length)return;document.getElementById('linkFooter').style.display='';var el=document.getElementById('linkList');el.innerHTML=d.data.map(function(x){return '<a href="'+esc(x.url)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border:1px solid #e0e4ea;border-radius:8px;font-size:13px;color:#555;text-decoration:none;transition:all .15s" onmouseover="this.style.borderColor=\'#4f6af5\';this.style.color=\'#4f6af5\'" onmouseout="this.style.borderColor=\'#e0e4ea\';this.style.color=\'#555\'">'+esc(x.name)+'</a>'}).join('')}).catch(function(){})}
+loadFooterLinks();
+</script>
 </body>
 </html>
