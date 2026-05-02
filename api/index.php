@@ -1,4 +1,6 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', 0);
 function loadConfig() {
     $fp = __DIR__ . '/../config.json';
     return file_exists($fp) ? json_decode(file_get_contents($fp), true) : [];
@@ -9,7 +11,8 @@ function dbConnect() {
     $db = $cfg['db'] ?? [];
     if (empty($db)) return null;
     try {
-        return new PDO("mysql:host={$db['host']};port={$db['port']};dbname={$db['name']};charset=utf8mb4", $db['user'], $db['pass'] ?? '', [
+        $dbPort = !empty($db['port']) ? $db['port'] : 3306;
+        return new PDO("mysql:host={$db['host']};port={$dbPort};dbname={$db['name']};charset=utf8mb4", $db['user'], $db['pass'] ?? '', [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
