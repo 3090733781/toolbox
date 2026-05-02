@@ -97,35 +97,38 @@ $moduleMap = [
     'market_list' => 'market',
 ];
 
-$module = $moduleMap[$source] ?? null;
-if ($module) {
-    include __DIR__ . "/{$module}.php";
-    $fn = "handle_{$module}";
-    if (function_exists($fn)) $fn($result, $source, $query, $cfg, $key);
-}
-// 插件动态路由：扫描 plugins/ 目录查找注册的 API
-if (!$module && $source) {
-    $pluginsDir = __DIR__ . '/../plugins';
-    if (is_dir($pluginsDir)) {
-        foreach (scandir($pluginsDir) as $pname) {
-            if ($pname === '.' || $pname === '..') continue;
-            $pdir = "{$pluginsDir}/{$pname}";
-            if (!is_dir($pdir)) continue;
-            $mf = "{$pdir}/plugin.json";
-            if (!file_exists($mf)) continue;
-            $manifest = json_decode(file_get_contents($mf), true);
-            $apis = $manifest['api'] ?? [];
-            if (in_array($source, $apis)) {
-                $entry = $manifest['entry'] ?? 'index.php';
-                $entryFile = "{$pluginsDir}/{$pname}/{$entry}";
-                if (file_exists($entryFile)) {
-                    include $entryFile;
-                    $fn = "handle_{$pname}";
-                    if (function_exists($fn)) $fn($result, $source, $query, $cfg, $key);
+try {
+    $module = $moduleMap[$source] ?? null;
+    if ($module) {
+        include __DIR__ . "/{$module}.php";
+        $fn = "handle_{$module}";
+        if (function_exists($fn)) $fn($result, $source, $query, $cfg, $key);
+    }
+    if (!$module && $source) {
+        $pluginsDir = __DIR__ . '/../plugins';
+        if (is_dir($pluginsDir)) {
+            foreach (scandir($pluginsDir) as $pname) {
+                if ($pname === '.' || $pname === '..') continue;
+                $pdir = "{$pluginsDir}/{$pname}";
+                if (!is_dir($pdir)) continue;
+                $mf = "{$pdir}/plugin.json";
+                if (!file_exists($mf)) continue;
+                $manifest = json_decode(file_get_contents($mf), true);
+                $apis = $manifest['api'] ?? [];
+                if (in_array($source, $apis)) {
+                    $entry = $manifest['entry'] ?? 'index.php';
+                    $entryFile = "{$pluginsDir}/{$pname}/{$entry}";
+                    if (file_exists($entryFile)) {
+                        include $entryFile;
+                        $fn = "handle_{$pname}";
+                        if (function_exists($fn)) $fn($result, $source, $query, $cfg, $key);
+                    }
+                    break;
                 }
-                break;
             }
         }
     }
+} catch (Exception $e) {
+    $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => '服务器内部错误'];
 }
 echo json_encode($result, JSON_UNESCAPED_UNICODE);
