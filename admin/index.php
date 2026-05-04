@@ -2,9 +2,9 @@
 $cfgFile = __DIR__ . '/../config.json';
 if (file_exists($cfgFile)) { $cfg = json_decode(file_get_contents($cfgFile), true); if (!file_exists(__DIR__ . '/../install/install.lock')) { header('Location: ../install/'); exit; } } else { header('Location: ../install/'); exit; }
 $p = $_GET['p'] ?? 'dashboard';
-$pages = ['dashboard','categories','plugins','plugins-install','users','messages','files','links','apikeys','settings','admin-config'];
+$pages = ['dashboard','categories','plugins','plugins-install','users','messages','files','links','settings','admin-config'];
 if (!in_array($p, $pages)) $p = 'dashboard';
-$pageTitle = ['dashboard'=>'主页','categories'=>'分类管理','plugins'=>'插件管理','plugins-install'=>'安装新插件','users'=>'用户管理','messages'=>'留言管理','files'=>'文件管理','links'=>'友链管理','apikeys'=>'API 密钥管理','settings'=>'系统配置','admin-config'=>'管理员配置'];
+$pageTitle = ['dashboard'=>'主页','categories'=>'分类管理','plugins'=>'插件管理','plugins-install'=>'安装新插件','users'=>'用户管理','messages'=>'留言管理','files'=>'文件管理','links'=>'友链管理','settings'=>'系统配置','admin-config'=>'管理员配置'];
 ?><!DOCTYPE html>
 <html><head><meta charset="utf-8"><title><?= $pageTitle[$p] ?> - 工具箱后台</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
@@ -25,7 +25,6 @@ $pageTitle = ['dashboard'=>'主页','categories'=>'分类管理','plugins'=>'插
 <a class="menu-item <?= $p==='messages'?'active':'' ?>" href="?p=messages"><span class="icon">💬</span>留言管理</a>
 <a class="menu-item <?= $p==='files'?'active':'' ?>" href="?p=files"><span class="icon">📁</span>文件管理</a>
 <a class="menu-item <?= $p==='links'?'active':'' ?>" href="?p=links"><span class="icon">🔗</span>友链管理</a>
-<a class="menu-item <?= $p==='apikeys'?'active':'' ?>" href="?p=apikeys"><span class="icon">🔑</span>API 密钥</a>
 <a class="menu-item" onclick="toggleSub(this)"><span class="icon">⚙</span>系统配置 <span style="margin-left:auto;font-size:10px;color:#999">▸</span></a>
 <div class="menu-sub <?= in_array($p,['settings','admin-config'])?'open':'' ?>">
 <a class="menu-item <?= $p==='settings'?'active':'' ?>" href="?p=settings">📝 基本配置</a>

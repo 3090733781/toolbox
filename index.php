@@ -228,7 +228,6 @@ color:#555;font-size:12px;cursor:pointer;transition:all .15s;display:flex;align-
 <button class="nav-link" data-page="file-tool">📁 文件中转</button>
 <button class="nav-link" data-page="msg-tool">💬 留言板</button>
 <button class="nav-link" data-page="plugin-market">🏪 插件列表</button>
-<button class="nav-link" data-page="api-docs">🔑 API</button>
 </div>
 <div class="nav-links" id="categoryNav" style="display:none"></div>
 <div class="nav-right">
@@ -392,65 +391,13 @@ color:#555;font-size:12px;cursor:pointer;transition:all .15s;display:flex;align-
 <?php include __DIR__ . '/plugins/market/page.php'; ?>
 </div>
 
-<div id="api-docs" class="tool-page">
-<div class="hero">
-<h1>🔑 API 文档</h1>
-<p>通过 API Key 调用工具箱所有功能，集成到你的应用或 AI 工作流中</p>
-</div>
-<div id="apiDocsContent"><div class="loading"><div class="spinner"></div>加载文档中...</div></div>
-</div>
-
 <script>
-function loadApiDocs(){var el=document.getElementById('apiDocsContent');if(!el)return;fetch('api/index.php?source=api_docs').then(r=>r.json()).then(function(d){if(!d.success){el.innerHTML='<div class=error>'+esc(d.error)+'</div>';return}renderApiDocs(d.data)}).catch(function(){el.innerHTML='<div class=error>加载失败</div>'})}
-function renderApiDocs(data){
-  var base=data.base_url;
-  var h='<div class="card"><div class="card-title">🔗 接口地址</div><div style="background:#f8f9fb;border:1px solid #e8ecf1;border-radius:10px;padding:14px;font-family:monospace;font-size:14px;text-align:center;color:#4f6af5;font-weight:600">'+esc(base)+'?source=xxx&key=YOUR_KEY</div></div>';
-  h+='<div class="card"><div class="card-title" style="justify-content:space-between"><span>🔐 认证方式</span></div>';
-  h+='<div class="row"><div class="row-label">Query</div><div class="row-value"><code style="background:#f0f2ff;padding:2px 8px;border-radius:4px;font-size:13px">?key=你的API密钥</code></div></div>';
-  h+='<div class="row"><div class="row-label">Header</div><div class="row-value"><code style="background:#f0f2ff;padding:2px 8px;border-radius:4px;font-size:13px">X-API-Key: 你的API密钥</code></div></div>';
-  h+='<div class="row" style="border-bottom:none"><div class="row-label">Bearer</div><div class="row-value"><code style="background:#f0f2ff;padding:2px 8px;border-radius:4px;font-size:13px">Authorization: Bearer 你的API密钥</code></div></div></div>';
-  h+='<div class="card"><div class="card-title">📦 响应格式</div>';
-  h+='<div class="raw-box">{"source": "接口名称",&#13;"success": true,&#13;"data": { ... },&#13;"error": null}</div></div>';
-  h+='<div class="card"><div class="card-title">⚠️ 错误码</div>';
-  h+='<div class="row"><div class="row-label">401</div><div class="row-value">无效的 API Key 或未授权</div></div>';
-  h+='<div class="row"><div class="row-label">403</div><div class="row-value">权限不足（Key 无权访问该接口）</div></div>';
-  h+='<div class="row" style="border-bottom:none"><div class="row-label">429</div><div class="row-value">请求过于频繁（超出限流）</div></div></div>';
-  h+='<div class="card"><div class="card-title">🔑 获取你的 API Key</div><p style="font-size:13px;color:#888;margin-bottom:12px">登录后进入后台 → API 密钥管理，即可创建和管理你的 API Key，支持设置权限范围、限流和过期时间。</p>';
-  h+='<div style="display:flex;gap:8px"><button class="user-btn primary" onclick="openModal()" id="apiDocLoginBtn">登录获取密钥</button><button class="user-btn" onclick="window.location.href=\'admin/?p=apikeys\'" id="apiDocAdminBtn" style="display:none">前往后台管理</button></div></div>';
-  data.docs.forEach(function(group){
-    h+='<div class="card"><div class="card-title" style="justify-content:space-between"><span>'+esc(group.icon)+' '+esc(group.group)+'</span><span style="font-size:12px;color:#888;font-weight:400">'+group.apis.length+' 个接口</span></div>';
-    group.apis.forEach(function(api){
-      h+='<div style="padding:12px 0;border-bottom:1px solid #f0f2f5">';
-      h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">';
-      h+='<span style="font-family:monospace;font-size:14px;font-weight:600;color:#4f6af5">'+esc(api.source)+'</span>';
-      if(api.method)h+='<span class="badge" style="background:#fff3e0;color:#e65100;font-size:11px">'+api.method+'</span>';
-      if(api.public)h+='<span class="badge" style="background:#f0fdf4;color:#16a34a;font-size:11px">公开</span>';
-      else h+='<span class="badge" style="background:#f0f2ff;color:#4f6af5;font-size:11px">需认证</span>';
-      h+='</div>';
-      h+='<div style="font-size:13px;color:#666;margin-bottom:6px">'+esc(api.desc)+'</div>';
-      if(api.params&&api.params.length){
-        h+='<div style="font-size:12px;color:#999">参数：';
-        api.params.forEach(function(p,i){
-          h+=esc(p.name)+(p.required?'*':'')+(i<api.params.length-1?', ':'');
-        });
-        h+='</div>';
-      }
-      h+='<div style="margin-top:6px"><code style="background:#f8f9fb;padding:4px 10px;border-radius:4px;font-size:11px;color:#555;word-break:break-all">'+esc(base)+'?source='+esc(api.source)+(api.params.length?'&'+esc(api.params[0].name)+'=...':'')+'</code></div>';
-      h+='</div>';
-    });
-    h+='</div>';
-  });
-  document.getElementById('apiDocsContent').innerHTML=h;
-  if(g_user&&g_user.role==='admin'){document.getElementById('apiDocLoginBtn').style.display='none';document.getElementById('apiDocAdminBtn').style.display=''}
-}
-
 function switchTab(id) {
 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
 document.querySelectorAll('.tool-page').forEach(p => p.classList.remove('active'));
 var link=document.querySelector('[data-page="'+id+'"]');if(link)link.classList.add('active');
 var page=document.getElementById(id);if(page)page.classList.add('active');
 if(id==='plugin-market'&&typeof loadPluginList==='function')loadPluginList();
-if(id==='api-docs')loadApiDocs();
 }
 document.querySelectorAll('.nav-link').forEach(function(link){link.addEventListener('click',function(){var id=this.dataset.page;switchTab(id);history.pushState(null,'','?p='+id)})});
 window.addEventListener('popstate',function(){var p=new URLSearchParams(location.search).get('p');if(p)switchTab(p)});
@@ -638,8 +585,6 @@ function checkUser() {
     if (loginPrompt) loginPrompt.style.display = loggedIn ? 'none' : '';
     loadFileList();
     if (loggedIn) loadApiKey();
-    var apiLoginBtn=document.getElementById('apiDocLoginBtn');var apiAdminBtn=document.getElementById('apiDocAdminBtn');
-    if(apiLoginBtn&&apiAdminBtn){if(g_user&&g_user.role==='admin'){apiLoginBtn.style.display='none';apiAdminBtn.style.display=''}else{apiLoginBtn.style.display='';apiAdminBtn.style.display='none'}}
   }).catch(() => {});
 }
 

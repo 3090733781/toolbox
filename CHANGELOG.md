@@ -1,18 +1,5 @@
 # 更新日志
 
-## v3.0.0
-- 全新 API Key 系统：支持多 Key 管理、权限控制、限流、调用日志
-- API 鉴权升级：支持三种认证方式（?key=、X-API-Key header、Authorization: Bearer）
-- 新增 API 调用日志记录与统计
-- 新增后台 API 密钥管理页面（创建/禁用/删除/查看日志/编辑）
-- 新增 api/apikey.php 接口模块（CRUD + 日志 + 统计）
-- 新增 api/docs.php 接口文档（返回所有可用 API 的元数据）
-- 公开 API、需认证 API、管理员 API 三级权限体系
-- 安装向导新增 api_keys 和 api_logs 表自动创建
-- 接口权限控制：支持通配符匹配（如 ip-* 匹配所有 IP 相关接口）
-- 限流机制：每分钟调用次数限制，超限返回 429
-- 兼容旧版 users.api_key 字段，无需迁移即可使用
-
 ## v2.7.30
 - 修复友链功能：后台添加友链持久化存储，前台页面底部全局显示
 - 新增 link_list / link_add / link_delete API，基于 JSON 文件存储
