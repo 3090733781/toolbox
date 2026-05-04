@@ -1,4 +1,4 @@
-<?php if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') return; ?>
+<?php if (empty($_SESSION['admin'])) return; ?>
 <div class="card">
 <div class="card-title">📖 API 接口文档</div>
 <p style="font-size:13px;color:#888;margin-bottom:16px">工具箱对外 API 接口列表，供外部程序通过 API Key 调用</p>
