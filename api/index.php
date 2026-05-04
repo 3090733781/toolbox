@@ -194,8 +194,8 @@ function jsonExit($data) {
     exit;
 }
 
-// 完全公开的 API（无需认证，仅登录/注册入口）
-$publicSources = ['user_login','user_register'];
+// 完全公开的 API（无需任何认证，无需 key）
+$publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','link_list','market_list','plugin_install','plugin_list','plugin_delete','api_docs'];
 
 // 管理员专属 API（必须管理员 session 或 admin 级别 key）
 $adminOnlySources = ['apikey_list_all','apikey_logs_all','apikey_admin_create','apikey_admin_delete','apikey_admin_toggle'];
