@@ -569,8 +569,8 @@ function checkUser() {
       const info = document.getElementById('userInfo');
       info.textContent = label;
       info.style.cursor = 'pointer';
-      info.title = '点击进入后台';
-      info.onclick = () => { window.location.href = 'admin/'; };
+      info.title = '点击进入' + (d.data.role === 'admin' ? '管理后台' : '用户中心');
+      info.onclick = () => { window.location.href = d.data.role === 'admin' ? 'admin/' : 'user/'; };
       info.style.display = '';
       document.getElementById('loginBtn').style.display = 'none';
       document.getElementById('userMenu').style.display = '';

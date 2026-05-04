@@ -2,26 +2,24 @@
 $cfgFile = __DIR__ . '/../config.json';
 if (file_exists($cfgFile)) { $cfg = json_decode(file_get_contents($cfgFile), true); if (!file_exists(__DIR__ . '/../install/install.lock')) { header('Location: ../install/'); exit; } } else { header('Location: ../install/'); exit; }
 
-$role = $_SESSION['role'] ?? '';
-$isAdmin = ($role === 'admin');
+// 退出登录
 $p = $_GET['p'] ?? 'dashboard';
+if ($p === 'logout') { $_SESSION = []; session_destroy(); header('Location: ../'); exit; }
 
-if ($isAdmin) {
-    $pages = ['dashboard','categories','plugins','plugins-install','users','messages','files','links','apikeys','settings','admin-config','my-apikeys','my-files'];
-    $pageTitle = [
-        'dashboard'=>'主页','categories'=>'分类管理','plugins'=>'插件管理','plugins-install'=>'安装新插件',
-        'users'=>'用户管理','messages'=>'留言管理','files'=>'文件管理','links'=>'友链管理',
-        'apikeys'=>'API 密钥管理','settings'=>'系统配置','admin-config'=>'管理员配置',
-        'my-apikeys'=>'我的 API 密钥','my-files'=>'我的文件',
-    ];
-    if (!in_array($p, $pages)) $p = 'dashboard';
-} else {
-    $pages = ['dashboard','my-apikeys','my-files'];
-    $pageTitle = ['dashboard'=>'我的主页','my-apikeys'=>'我的 API 密钥','my-files'=>'我的文件'];
-    if (!in_array($p, $pages)) $p = 'dashboard';
-}
+// 仅限管理员
+$role = $_SESSION['role'] ?? '';
+if ($role !== 'admin') { header('Location: ../user/'); exit; }
+
+$pages = ['dashboard','categories','plugins','plugins-install','users','messages','files','links','apikeys','settings','admin-config','api-docs'];
+$pageTitle = [
+    'dashboard'=>'主页','categories'=>'分类管理','plugins'=>'插件管理','plugins-install'=>'安装新插件',
+    'users'=>'用户管理','messages'=>'留言管理','files'=>'文件管理','links'=>'友链管理',
+    'apikeys'=>'API 密钥管理','settings'=>'系统配置','admin-config'=>'管理员配置',
+    'api-docs'=>'API 文档',
+];
+if (!in_array($p, $pages)) $p = 'dashboard';
 ?><!DOCTYPE html>
-<html><head><meta charset="utf-8"><title><?= $pageTitle[$p] ?> - 工具箱后台</title>
+<html><head><meta charset="utf-8"><title><?= $pageTitle[$p] ?> - 工具箱管理后台</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <link rel="stylesheet" href="css/admin.css?v=2.4">
 </head>
@@ -29,9 +27,8 @@ if ($isAdmin) {
 <div class="header"><div class="logo">⚙ 工具箱 <span>v<span id="ver"></span></span></div>
 <div class="header-right"><span class="user" id="userLabel"></span><a href="../" target="_blank">网站首页</a><a href="?p=logout">退出登录</a></div></div>
 <div class="sidebar">
-<div class="menu-group"><div class="menu-group-title"><?= $isAdmin ? '管理' : '我的' ?></div>
-<a class="menu-item <?= $p==='dashboard'?'active':'' ?>" href="?p=dashboard"><span class="icon">🏠</span><?= $isAdmin ? '主页' : '我的主页' ?></a>
-<?php if ($isAdmin): ?>
+<div class="menu-group"><div class="menu-group-title">管理</div>
+<a class="menu-item <?= $p==='dashboard'?'active':'' ?>" href="?p=dashboard"><span class="icon">🏠</span>主页</a>
 <a class="menu-item <?= $p==='categories'?'active':'' ?>" href="?p=categories"><span class="icon">📂</span>分类管理</a>
 <a class="menu-item" onclick="toggleSub(this)"><span class="icon">🔌</span>插件管理 <span style="margin-left:auto;font-size:10px;color:#999">▸</span></a>
 <div class="menu-sub <?= in_array($p,['plugins','plugins-install'])?'open':'' ?>">
@@ -42,24 +39,17 @@ if ($isAdmin) {
 <a class="menu-item <?= $p==='files'?'active':'' ?>" href="?p=files"><span class="icon">📁</span>文件管理</a>
 <a class="menu-item <?= $p==='links'?'active':'' ?>" href="?p=links"><span class="icon">🔗</span>友链管理</a>
 <a class="menu-item <?= $p==='apikeys'?'active':'' ?>" href="?p=apikeys"><span class="icon">🔑</span>API 密钥</a>
+<a class="menu-item <?= $p==='api-docs'?'active':'' ?>" href="?p=api-docs"><span class="icon">📖</span>API 文档</a>
 <a class="menu-item" onclick="toggleSub(this)"><span class="icon">⚙</span>系统配置 <span style="margin-left:auto;font-size:10px;color:#999">▸</span></a>
 <div class="menu-sub <?= in_array($p,['settings','admin-config'])?'open':'' ?>">
 <a class="menu-item <?= $p==='settings'?'active':'' ?>" href="?p=settings">📝 基本配置</a>
 <a class="menu-item <?= $p==='admin-config'?'active':'' ?>" href="?p=admin-config">🔐 管理员配置</a></div>
-<?php else: ?>
-<a class="menu-item <?= $p==='my-apikeys'?'active':'' ?>" href="?p=my-apikeys"><span class="icon">🔑</span>我的 API 密钥</a>
-<a class="menu-item <?= $p==='my-files'?'active':'' ?>" href="?p=my-files"><span class="icon">📁</span>我的文件</a>
-<?php endif; ?>
 </div></div>
 <div class="body-wrap"><div class="content" id="contentArea">
 <?php
-if (!empty($_SESSION['admin'])) {
-    $pageFile = __DIR__ . '/pages/' . $p . '.php';
-    if (file_exists($pageFile)) include $pageFile;
-    else echo '<div class="card"><div class="card-title">404</div><p>页面不存在</p></div>';
-} else {
-    echo '<div class="card" style="text-align:center;padding:60px"><h2>请先登录</h2><p style="color:#888;margin-top:10px"><a href="../" style="color:#4f6af5">返回首页</a></p></div>';
-}
+$pageFile = __DIR__ . '/pages/' . $p . '.php';
+if (file_exists($pageFile)) include $pageFile;
+else echo '<div class="card"><div class="card-title">404</div><p>页面不存在</p></div>';
 ?>
 </div></div>
 <script>
@@ -67,6 +57,5 @@ function toggleSub(el){var sub=el.nextElementSibling;if(sub&&sub.classList.conta
 function esc(s){return String(s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
 fetch('../version.json').then(r=>r.json()).then(v=>document.getElementById('ver').textContent=v.version).catch(()=>{});
 fetch('../api/index.php?source=user_info').then(r=>r.json()).then(function(d){if(d.success)document.getElementById('userLabel').textContent=d.data.username+(d.data.role==='admin'?' (管理员)':'')}).catch(function(){});
-<?php if ($p === 'logout'): session_destroy(); echo "window.location.href='../';"; endif; ?>
 </script>
 </body></html>
