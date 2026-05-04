@@ -71,16 +71,18 @@ function jsonExit($data) {
     exit;
 }
 
-$publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','link_list','market_list','plugin_install','plugin_list','plugin_delete','sky_daily_fetch'];
+// 白名单已禁用，所有 API 公开访问
+// $publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','link_list','market_list','plugin_install','plugin_list','plugin_delete','sky_daily_fetch'];
 $source = $_GET['source'] ?? 'ip-api';
 $query = $_GET['query'] ?? '';
 $cfg = loadConfig();
 $key = $cfg['amap_key'] ?? '';
 $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => null];
 
-if (!in_array($source, $publicSources, true) && empty($cfg['installed'])) {
-    jsonExit(array_merge($result, ['error' => '请先完成安装']));
-}
+// 白名单检查已禁用
+// if (!in_array($source, $publicSources, true) && empty($cfg['installed'])) {
+//     jsonExit(array_merge($result, ['error' => '请先完成安装']));
+// }
 
 $moduleMap = [
     'ip-api' => 'ip', 'ip-sb' => 'ip', 'ipwhois' => 'ip', 'ipip' => 'ip', 'ip-baidu' => 'ip', 'ip-baota' => 'ip', 'ip9' => 'ip',
