@@ -1,6 +1,6 @@
-<?php if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') return; ?>
+<?php if (empty($_SESSION['admin'])) return; ?>
 <div class="stats">
-<div class="stat"><div class="stat-num" id="dashFiles">-</div><div class="stat-label">文件数</div></div>
+<div class="stat"><div class="stat-num" id="dashFiles">-</div><div class="stat-label">我的文件</div></div>
 <div class="stat"><div class="stat-num" id="dashUsers">-</div><div class="stat-label">用户数</div></div>
 <div class="stat"><div class="stat-num" id="dashPhp"><?= PHP_VERSION ?></div><div class="stat-label">PHP 版本</div></div>
 <div class="stat"><div class="stat-num" id="dashSize">-</div><div class="stat-label">上传总量</div></div>

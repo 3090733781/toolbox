@@ -1,12 +1,19 @@
 <?php @session_start();
 $cfgFile = __DIR__ . '/../config.json';
 if (file_exists($cfgFile)) { $cfg = json_decode(file_get_contents($cfgFile), true); if (!file_exists(__DIR__ . '/../install/install.lock')) { header('Location: ../install/'); exit; } } else { header('Location: ../install/'); exit; }
+
+// 退出登录
 $p = $_GET['p'] ?? 'dashboard';
+if ($p === 'logout') { $_SESSION = []; session_destroy(); header('Location: ../'); exit; }
+
+// 仅限管理员
+if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { header('Location: ../user/'); exit; }
+
 $pages = ['dashboard','categories','plugins','plugins-install','users','messages','files','links','settings','admin-config'];
-if (!in_array($p, $pages)) $p = 'dashboard';
 $pageTitle = ['dashboard'=>'主页','categories'=>'分类管理','plugins'=>'插件管理','plugins-install'=>'安装新插件','users'=>'用户管理','messages'=>'留言管理','files'=>'文件管理','links'=>'友链管理','settings'=>'系统配置','admin-config'=>'管理员配置'];
+if (!in_array($p, $pages)) $p = 'dashboard';
 ?><!DOCTYPE html>
-<html><head><meta charset="utf-8"><title><?= $pageTitle[$p] ?> - 工具箱后台</title>
+<html><head><meta charset="utf-8"><title><?= $pageTitle[$p] ?> - 工具箱管理后台</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <link rel="stylesheet" href="css/admin.css?v=2.4">
 </head>
@@ -32,13 +39,9 @@ $pageTitle = ['dashboard'=>'主页','categories'=>'分类管理','plugins'=>'插
 </div></div>
 <div class="body-wrap"><div class="content" id="contentArea">
 <?php
-if (!empty($_SESSION['admin']) && $_SESSION['role'] === 'admin') {
-    $pageFile = __DIR__ . '/pages/' . $p . '.php';
-    if (file_exists($pageFile)) include $pageFile;
-    else echo '<div class="card"><div class="card-title">404</div><p>页面不存在</p></div>';
-} else {
-    echo '<div class="card" style="text-align:center;padding:60px"><h2>请先登录</h2><p style="color:#888;margin-top:10px"><a href="../" style="color:#4f6af5">返回首页</a></p></div>';
-}
+$pageFile = __DIR__ . '/pages/' . $p . '.php';
+if (file_exists($pageFile)) include $pageFile;
+else echo '<div class="card"><div class="card-title">404</div><p>页面不存在</p></div>';
 ?>
 </div></div>
 <script>
@@ -46,6 +49,5 @@ function toggleSub(el){var sub=el.nextElementSibling;if(sub&&sub.classList.conta
 function esc(s){return String(s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
 fetch('../version.json').then(r=>r.json()).then(v=>document.getElementById('ver').textContent=v.version).catch(()=>{});
 fetch('../api/index.php?source=user_info').then(r=>r.json()).then(function(d){if(d.success)document.getElementById('userLabel').textContent=d.data.username+(d.data.role==='admin'?' (管理员)':'')}).catch(function(){});
-<?php if ($p === 'logout'): session_destroy(); echo "window.location.href='../';"; endif; ?>
 </script>
 </body></html>

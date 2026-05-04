@@ -568,9 +568,9 @@ function checkUser() {
       const label = d.data.username + (d.data.role === 'admin' ? ' (管理员)' : '');
       const info = document.getElementById('userInfo');
       info.textContent = label;
-      info.style.cursor = d.data.role === 'admin' ? 'pointer' : 'default';
-      info.title = d.data.role === 'admin' ? '点击进入后台' : '';
-      info.onclick = d.data.role === 'admin' ? () => { window.location.href = 'admin/'; } : null;
+      info.style.cursor = 'pointer';
+      info.title = '点击进入' + (d.data.role === 'admin' ? '管理后台' : '用户中心');
+      info.onclick = () => { window.location.href = d.data.role === 'admin' ? 'admin/' : 'user/'; };
       info.style.display = '';
       document.getElementById('loginBtn').style.display = 'none';
       document.getElementById('userMenu').style.display = '';
