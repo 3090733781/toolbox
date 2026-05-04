@@ -1,25 +1,10 @@
 <?php @session_start();
 $cfgFile = __DIR__ . '/../config.json';
 if (file_exists($cfgFile)) { $cfg = json_decode(file_get_contents($cfgFile), true); if (!file_exists(__DIR__ . '/../install/install.lock')) { header('Location: ../install/'); exit; } } else { header('Location: ../install/'); exit; }
-
-$role = $_SESSION['role'] ?? '';
-$isAdmin = ($role === 'admin');
 $p = $_GET['p'] ?? 'dashboard';
-
-if ($isAdmin) {
-    $pages = ['dashboard','categories','plugins','plugins-install','users','messages','files','links','apikeys','settings','admin-config','my-apikeys','my-files'];
-    $pageTitle = [
-        'dashboard'=>'主页','categories'=>'分类管理','plugins'=>'插件管理','plugins-install'=>'安装新插件',
-        'users'=>'用户管理','messages'=>'留言管理','files'=>'文件管理','links'=>'友链管理',
-        'apikeys'=>'API 密钥管理','settings'=>'系统配置','admin-config'=>'管理员配置',
-        'my-apikeys'=>'我的 API 密钥','my-files'=>'我的文件',
-    ];
-    if (!in_array($p, $pages)) $p = 'dashboard';
-} else {
-    $pages = ['dashboard','my-apikeys','my-files'];
-    $pageTitle = ['dashboard'=>'我的主页','my-apikeys'=>'我的 API 密钥','my-files'=>'我的文件'];
-    if (!in_array($p, $pages)) $p = 'dashboard';
-}
+$pages = ['dashboard','categories','plugins','plugins-install','users','messages','files','links','apikeys','settings','admin-config'];
+if (!in_array($p, $pages)) $p = 'dashboard';
+$pageTitle = ['dashboard'=>'主页','categories'=>'分类管理','plugins'=>'插件管理','plugins-install'=>'安装新插件','users'=>'用户管理','messages'=>'留言管理','files'=>'文件管理','links'=>'友链管理','apikeys'=>'API 密钥管理','settings'=>'系统配置','admin-config'=>'管理员配置'];
 ?><!DOCTYPE html>
 <html><head><meta charset="utf-8"><title><?= $pageTitle[$p] ?> - 工具箱后台</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
@@ -29,9 +14,8 @@ if ($isAdmin) {
 <div class="header"><div class="logo">⚙ 工具箱 <span>v<span id="ver"></span></span></div>
 <div class="header-right"><span class="user" id="userLabel"></span><a href="../" target="_blank">网站首页</a><a href="?p=logout">退出登录</a></div></div>
 <div class="sidebar">
-<div class="menu-group"><div class="menu-group-title"><?= $isAdmin ? '管理' : '我的' ?></div>
-<a class="menu-item <?= $p==='dashboard'?'active':'' ?>" href="?p=dashboard"><span class="icon">🏠</span><?= $isAdmin ? '主页' : '我的主页' ?></a>
-<?php if ($isAdmin): ?>
+<div class="menu-group"><div class="menu-group-title">管理</div>
+<a class="menu-item <?= $p==='dashboard'?'active':'' ?>" href="?p=dashboard"><span class="icon">🏠</span>主页</a>
 <a class="menu-item <?= $p==='categories'?'active':'' ?>" href="?p=categories"><span class="icon">📂</span>分类管理</a>
 <a class="menu-item" onclick="toggleSub(this)"><span class="icon">🔌</span>插件管理 <span style="margin-left:auto;font-size:10px;color:#999">▸</span></a>
 <div class="menu-sub <?= in_array($p,['plugins','plugins-install'])?'open':'' ?>">
@@ -46,14 +30,10 @@ if ($isAdmin) {
 <div class="menu-sub <?= in_array($p,['settings','admin-config'])?'open':'' ?>">
 <a class="menu-item <?= $p==='settings'?'active':'' ?>" href="?p=settings">📝 基本配置</a>
 <a class="menu-item <?= $p==='admin-config'?'active':'' ?>" href="?p=admin-config">🔐 管理员配置</a></div>
-<?php else: ?>
-<a class="menu-item <?= $p==='my-apikeys'?'active':'' ?>" href="?p=my-apikeys"><span class="icon">🔑</span>我的 API 密钥</a>
-<a class="menu-item <?= $p==='my-files'?'active':'' ?>" href="?p=my-files"><span class="icon">📁</span>我的文件</a>
-<?php endif; ?>
 </div></div>
 <div class="body-wrap"><div class="content" id="contentArea">
 <?php
-if (!empty($_SESSION['admin'])) {
+if (!empty($_SESSION['admin']) && $_SESSION['role'] === 'admin') {
     $pageFile = __DIR__ . '/pages/' . $p . '.php';
     if (file_exists($pageFile)) include $pageFile;
     else echo '<div class="card"><div class="card-title">404</div><p>页面不存在</p></div>';
