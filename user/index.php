@@ -16,8 +16,8 @@ if (empty($_SESSION['admin'])) {
     exit;
 }
 
-$pages = ['dashboard','my-apikeys','my-files','api-docs'];
-$pageTitle = ['dashboard'=>'我的主页','my-apikeys'=>'我的 API 密钥','my-files'=>'我的文件','api-docs'=>'API 文档'];
+$pages = ['dashboard','my-apikeys','my-files'];
+$pageTitle = ['dashboard'=>'我的主页','my-apikeys'=>'我的 API 密钥','my-files'=>'我的文件'];
 if (!in_array($p, $pages)) $p = 'dashboard';
 ?><!DOCTYPE html>
 <html><head><meta charset="utf-8"><title><?= $pageTitle[$p] ?> - 工具箱</title>
@@ -32,7 +32,6 @@ if (!in_array($p, $pages)) $p = 'dashboard';
 <a class="menu-item <?= $p==='dashboard'?'active':'' ?>" href="?p=dashboard"><span class="icon">🏠</span>我的主页</a>
 <a class="menu-item <?= $p==='my-apikeys'?'active':'' ?>" href="?p=my-apikeys"><span class="icon">🔑</span>我的 API 密钥</a>
 <a class="menu-item <?= $p==='my-files'?'active':'' ?>" href="?p=my-files"><span class="icon">📁</span>我的文件</a>
-<a class="menu-item <?= $p==='api-docs'?'active':'' ?>" href="?p=api-docs"><span class="icon">📖</span>API 文档</a>
 </div></div>
 <div class="body-wrap"><div class="content" id="contentArea">
 <?php
