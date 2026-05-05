@@ -37,7 +37,8 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
             }
             $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
             if ($ext !== 'zip') { $result['error'] = '仅支持 ZIP 格式'; return; }
-            $pluginName = pathinfo($f['name'], PATHINFO_FILENAME);
+            $pluginName = basename(pathinfo($f['name'], PATHINFO_FILENAME));
+            if (!preg_match('/^[a-zA-Z0-9_-]+$/', $pluginName)) { $result['error'] = '插件名仅支持字母、数字、下划线和连字符'; return; }
             $pluginsDir = __DIR__ . '/../plugins/';
             $tmpFile = $f['tmp_name'];
             $extracted = false;
@@ -61,6 +62,12 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
                         }
                     }
                     if ($foundDir !== null) {
+                        // 防止 Zip Slip 路径穿越
+                        if (strpos($foundDir, '..') !== false || !preg_match('/^[a-zA-Z0-9_-]+$/', $foundDir)) {
+                            $zip->close();
+                            $result['error'] = '插件包路径不合法';
+                            return;
+                        }
                         $exDir = $pluginsDir . $foundDir;
                         if (!is_dir($exDir)) {
                             @$zip->extractTo($pluginsDir);

@@ -34,7 +34,7 @@ function handle_file(&$result, $source, $query, $cfg, $key) {
             $names = array_column($existing, 'name');
             while (in_array($name, $names)) { $p = pathinfo($name); $name = $p['filename'] . "_({$i})." . ($p['extension'] ?? ''); $i++; }
             if (storagePut($name, $f['tmp_name'])) {
-                try { $pdo = dbConnect(); if ($pdo) { try { $pdo->exec("ALTER TABLE files ADD COLUMN user_id INT DEFAULT 0"); } catch (Exception $e) {} $stmt = $pdo->prepare("INSERT INTO files (name, size, type, user_id) VALUES (?, ?, ?, ?)"); $stmt->execute([$name, filesize($f['tmp_name']), $f['type'], $u['user_id']]); } } catch (Exception $e) {}
+                try { $pdo = dbConnect(); if ($pdo) { try { $pdo->exec("ALTER TABLE files ADD COLUMN user_id INT DEFAULT 0"); } catch (Exception $e) {} $stmt = $pdo->prepare("INSERT INTO files (name, size, type, user_id) VALUES (?, ?, ?, ?)"); $stmt->execute([$name, $f['size'], $f['type'], $u['user_id']]); } } catch (Exception $e) {}
                 $result['success'] = true; $result['data'] = ['name' => $name, 'size' => $f['size'], 'type' => $f['type']];
             } else { $result['error'] = '保存文件失败'; }
             return;
@@ -47,12 +47,17 @@ function handle_file(&$result, $source, $query, $cfg, $key) {
             $maxSize = 50 * 1024 * 1024; $ufiles = $_FILES['file'];
             if (!is_array($ufiles['name'])) $ufiles = ['name'=>[$ufiles['name']],'tmp_name'=>[$ufiles['tmp_name']],'size'=>[$ufiles['size']],'error'=>[$ufiles['error']],'type'=>[$ufiles['type']]];
             $uploaded = []; try { $pdo = dbConnect(); if ($pdo) { try { $pdo->exec("ALTER TABLE files ADD COLUMN user_id INT DEFAULT 0"); } catch (Exception $e) {} } } catch (Exception $e) { $pdo = null; }
+            $existing = storageList();
+            $names = array_column($existing, 'name');
             for ($i = 0; $i < count($ufiles['name']); $i++) {
                 if ($ufiles['error'][$i] !== UPLOAD_ERR_OK) continue;
                 $ext = strtolower(pathinfo($ufiles['name'][$i], PATHINFO_EXTENSION));
                 if ($ext && !in_array($ext, $allowed)) continue; if ($ufiles['size'][$i] > $maxSize) continue;
                 $name = $ufiles['name'][$i];
+                $j = 1;
+                while (in_array($name, $names)) { $p = pathinfo($name); $name = $p['filename'] . "_({$j})." . ($p['extension'] ?? ''); $j++; }
                 if (storagePut($name, $ufiles['tmp_name'][$i])) {
+                    $names[] = $name;
                     $uploaded[] = ['name' => $name, 'size' => $ufiles['size'][$i]];
                     if ($pdo) { try { $stmt = $pdo->prepare("INSERT INTO files (name, size, type, user_id) VALUES (?, ?, ?, ?)"); $stmt->execute([$name, $ufiles['size'][$i], $ufiles['type'][$i] ?? '', $u['user_id']]); } catch (Exception $e) {} }
                 }
@@ -79,9 +84,10 @@ function handle_file(&$result, $source, $query, $cfg, $key) {
             $fn = basename($_GET['file'] ?? '');
             if (!$fn) { $result['error'] = '缺少文件名'; return; }
             $fp = __DIR__ . '/../uploads/' . $fn;
-            if (!file_exists($fp)) { header('HTTP/1.0 404 Not Found'); exit; }
+            if (!file_exists($fp)) { http_response_code(404); exit; }
             header('Content-Type: ' . (function_exists('mime_content_type') ? (mime_content_type($fp) ?: 'application/octet-stream') : 'application/octet-stream'));
-            header('Content-Length: ' . filesize($fp)); header('Content-Disposition: inline; filename="' . $fn . '"');
+            header('Content-Length: ' . filesize($fp));
+            header("Content-Disposition: inline; filename=\"" . str_replace(['"', "\r", "\n"], '', $fn) . "\"; filename*=UTF-8''" . rawurlencode($fn));
             readfile($fp); exit;
     }
 }

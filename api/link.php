@@ -12,8 +12,21 @@ function link_save($data) {
 function handle_link(&$result, $source, $query, $cfg, $key) {
     switch ($source) {
         case 'link_list':
+            $links = link_storage();
+            $changed = false;
+            $maxId = 0;
+            foreach ($links as $link) {
+                if (isset($link['id']) && $link['id'] > $maxId) $maxId = $link['id'];
+            }
+            foreach ($links as $i => $link) {
+                if (!isset($link['id'])) {
+                    $links[$i]['id'] = ++$maxId;
+                    $changed = true;
+                }
+            }
+            if ($changed) link_save($links);
             $result['success'] = true;
-            $result['data'] = link_storage();
+            $result['data'] = $links;
             return;
 
         case 'link_add':
@@ -24,7 +37,11 @@ function handle_link(&$result, $source, $query, $cfg, $key) {
             $url = trim($input['url'] ?? '');
             if (!$name || !$url) { $result['error'] = '名称和网址不能为空'; return; }
             $links = link_storage();
-            $links[] = ['name' => $name, 'url' => $url, 'time' => date('Y-m-d H:i:s')];
+            $maxId = 0;
+            foreach ($links as $link) {
+                if (isset($link['id']) && $link['id'] > $maxId) $maxId = $link['id'];
+            }
+            $links[] = ['id' => $maxId + 1, 'name' => $name, 'url' => $url, 'time' => date('Y-m-d H:i:s')];
             link_save($links);
             $result['success'] = true;
             $result['data'] = $links;
@@ -34,12 +51,21 @@ function handle_link(&$result, $source, $query, $cfg, $key) {
             @session_start();
             if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = '无权限'; return; }
             $id = intval($_GET['id'] ?? -1);
+            if ($id <= 0) { $result['error'] = '无效ID'; return; }
             $links = link_storage();
-            if ($id < 0 || $id >= count($links)) { $result['error'] = '无效ID'; return; }
-            array_splice($links, $id, 1);
-            link_save($links);
+            $newLinks = [];
+            $found = false;
+            foreach ($links as $link) {
+                if (isset($link['id']) && $link['id'] === $id) {
+                    $found = true;
+                    continue;
+                }
+                $newLinks[] = $link;
+            }
+            if (!$found) { $result['error'] = '友链不存在'; return; }
+            link_save($newLinks);
             $result['success'] = true;
-            $result['data'] = $links;
+            $result['data'] = $newLinks;
             return;
     }
 }

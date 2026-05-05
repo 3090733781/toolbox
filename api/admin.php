@@ -6,7 +6,7 @@ function handle_admin(&$result, $source, $query, $cfg, $key) {
             $input = json_decode(file_get_contents('php://input'), true);
             $pwd = $input['password'] ?? ''; $hash = $cfg['password_hash'] ?? '';
             if (!$hash) { $result['success'] = true; $result['data'] = ['need_setup' => true]; return; }
-            if (password_verify($pwd, $hash)) { @session_start(); $_SESSION['admin'] = true; $result['success'] = true; }
+            if (password_verify($pwd, $hash)) { @session_start(); $_SESSION['admin'] = true; $_SESSION['role'] = 'admin'; $result['success'] = true; }
             else { $result['error'] = '密码错误'; }
             return;
 
@@ -21,7 +21,7 @@ function handle_admin(&$result, $source, $query, $cfg, $key) {
             $rawBody = file_get_contents('php://input'); $input = json_decode($rawBody, true);
             if (!$input) { $result['error'] = '无效数据'; return; }
             $needAuth = !(empty($cfg['password_hash']) && !empty($input['password'] ?? ''));
-            if ($needAuth && empty($_SESSION['role'])) { $result['error'] = '未登录'; return; }
+            if ($needAuth && (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin')) { $result['error'] = '无权限'; return; }
             if (!empty($input['amap_key']) && $_SESSION['role'] !== 'admin') { $result['error'] = '仅管理员可修改配置'; return; }
             if (!empty($input['password'])) {
                 $cfg['password_hash'] = password_hash($input['password'], PASSWORD_DEFAULT);

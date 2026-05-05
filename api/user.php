@@ -13,9 +13,11 @@ function handle_user(&$result, $source, $query, $cfg, $key) {
             $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?"); $stmt->execute([$user]);
             if ($stmt->fetch()) { $result['error'] = '用户名已存在'; return; }
             $hash = password_hash($pass, PASSWORD_DEFAULT);
-            $stmt = $pdo->query("SELECT COUNT(*) FROM users");
+            $pdo->beginTransaction();
+            $stmt = $pdo->query("SELECT COUNT(*) FROM users FOR UPDATE");
             $isFirst = $stmt->fetchColumn() == 0; $role = $isFirst ? 'admin' : 'user';
             $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)"); $stmt->execute([$user, $hash, $role]);
+            $pdo->commit();
             $result['success'] = true; $result['data'] = ['username' => $user, 'role' => $role, 'is_first' => $isFirst];
             return;
 

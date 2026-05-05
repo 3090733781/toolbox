@@ -55,6 +55,7 @@ function httpGet($url, $timeout = 8) {
 }
 
 function httpGetRaw($url, $timeout = 8) {
+    if (!function_exists('curl_init')) return false;
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $url, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout,
@@ -71,18 +72,19 @@ function jsonExit($data) {
     exit;
 }
 
-// 白名单已禁用，所有 API 公开访问
-// $publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','link_list','market_list','plugin_install','plugin_list','plugin_delete','sky_daily_fetch'];
 $source = $_GET['source'] ?? 'ip-api';
 $query = $_GET['query'] ?? '';
 $cfg = loadConfig();
 $key = $cfg['amap_key'] ?? '';
 $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => null];
 
-// 白名单检查已禁用
-// if (!in_array($source, $publicSources, true) && empty($cfg['installed'])) {
-//     jsonExit(array_merge($result, ['error' => '请先完成安装']));
-// }
+// 安装检查：未安装时仅允许公开 API
+if (empty($cfg['installed'])) {
+    $publicSources = ['file_config','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_list','cat_list','link_list','market_list','plugin_list'];
+    if (!in_array($source, $publicSources, true)) {
+        jsonExit(array_merge($result, ['error' => '请先完成安装']));
+    }
+}
 
 $moduleMap = [
     'ip-api' => 'ip', 'ip-sb' => 'ip', 'ipwhois' => 'ip', 'ipip' => 'ip', 'ip-baidu' => 'ip', 'ip-baota' => 'ip', 'ip9' => 'ip',
@@ -119,7 +121,7 @@ try {
                 $manifest = json_decode(file_get_contents($mf), true);
                 $apis = $manifest['api'] ?? [];
                 if (in_array($source, $apis)) {
-                    $entry = $manifest['entry'] ?? 'index.php';
+                    $entry = basename($manifest['entry'] ?? 'index.php');
                     $entryFile = "{$pluginsDir}/{$pname}/{$entry}";
                     if (file_exists($entryFile)) {
                         include $entryFile;
