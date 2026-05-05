@@ -1,0 +1,12 @@
+# 开发技能卡（仅本地使用）
+toolbox.skill.md
+
+# 第三方插件（不纳入仓库）
+plugins/sky_daily/
+plugins/music_unlock/
+
+# 运行时文件
+uploads/*
+!uploads/.gitkeep
+config.json
+install/install.lock
