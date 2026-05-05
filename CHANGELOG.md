@@ -1,5 +1,21 @@
 # 更新日志
 
+## v2.8.1
+- 修复 cat_add / cat_delete 缺少管理员鉴权的漏洞
+- 修复 admin_save 权限绕过，严格校验 role=admin
+- 修复 admin_login 登录后未设置 role 导致权限失效
+- 修复插件安装路径穿越与 Zip Slip 漏洞
+- 修复文件上传后 filesize 取值错误（临时文件已移动）
+- 修复批量上传缺少重名处理
+- 修复 Content-Disposition 头注入风险
+- 修复 storageDownload 返回畸形 404 状态行
+- 修复友链删除使用数组索引导致删错或报错
+- 修复插件 entry 路径可穿越至插件目录外
+- 修复安装检查白名单被完全禁用
+- 修复首用户 admin 角色分配存在竞态条件
+- 修复 dbHasTables 使用不可靠的 rowCount
+- 修复安装向导 SQL 拼接改为 prepared statement
+
 ## v2.8.0
 - 新增用户中心（/user/）：普通用户管理自己的文件
 - 后台角色分离：管理员访问 /admin/，普通用户访问 /user/
