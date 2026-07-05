@@ -1,0 +1,14 @@
+{
+  "name": "二次验证登录",
+  "version": "1.0.0",
+  "description": "生成和校验基于身份验证器 App 的 TOTP 动态验证码，用于登录二次验证配置",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🔐",
+  "api": [
+    "twofa_generate",
+    "twofa_verify"
+  ],
+  "config": false
+}

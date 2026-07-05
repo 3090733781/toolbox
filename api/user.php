@@ -2,51 +2,104 @@
 function handle_user(&$result, $source, $query, $cfg, $key) {
     switch ($source) {
         case 'user_register':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = 'è¯·ä½¿ç”¨ POST'; return; }
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = 'ÇëÊ¹ÓÃ POST'; return; }
             $input = json_decode(file_get_contents('php://input'), true);
             $user = trim($input['username'] ?? ''); $pass = $input['password'] ?? '';
-            if (!$user || strlen($user) < 2) { $result['error'] = 'ç”¨æˆ·åè‡³å°‘2ä½'; return; }
-            if (strtolower($user) === 'admin') { $result['error'] = 'è¯¥ç”¨æˆ·åè¢«ä¿ç•™'; return; }
-            if (!$pass || strlen($pass) < 4) { $result['error'] = 'å¯†ç è‡³å°‘4ä½'; return; }
-            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'æ•°æ®åº“è¿æ¥å¤±è´¥'; return; }
+            if (!$user || strlen($user) < 2) { $result['error'] = 'ÓÃ»§ÃûÖÁÉÙ2Î»'; return; }
+            if (strtolower($user) === 'admin') { $result['error'] = '¸ÃÓÃ»§Ãû±»±£Áô'; return; }
+            
+            // ¼ÓÇ¿ÃÜÂëÇ¿¶ÈÒªÇó
+            if (!$pass || strlen($pass) < 6) { $result['error'] = 'ÃÜÂëÖÁÉÙ6Î»'; return; }
+            if (!preg_match('/[A-Za-z].*[0-9]|[0-9].*[A-Za-z]/', $pass)) { 
+                $result['error'] = 'password must contain both letters and numbers'; 
+                return; 
+            }
+            
+            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'Êı¾İ¿âÁ¬½ÓÊ§°Ü'; return; }
             $pdo->exec("CREATE TABLE IF NOT EXISTS `users` (`id` INT AUTO_INCREMENT PRIMARY KEY, `username` VARCHAR(50) NOT NULL UNIQUE, `password_hash` VARCHAR(255) NOT NULL, `role` VARCHAR(20) DEFAULT 'user', `api_key` VARCHAR(64) DEFAULT NULL, `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
             $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?"); $stmt->execute([$user]);
-            if ($stmt->fetch()) { $result['error'] = 'ç”¨æˆ·åå·²å­˜åœ¨'; return; }
-            $hash = password_hash($pass, PASSWORD_DEFAULT);
-            $pdo->beginTransaction();
-            $stmt = $pdo->query("SELECT COUNT(*) FROM users FOR UPDATE");
+            if ($stmt->fetch()) { $result['error'] = 'ÓÃ»§ÃûÒÑ´æÔÚ'; return; }
+            
+            // ÓÅ»¯¹şÏ£Ëã·¨£¬Ê¹ÓÃbcrypt²¢ÉèÖÃ¸ü¸ßµÄcost²ÎÊı£¬Ìá¸ßÆÆ½âÄÑ¶È
+            $hashOptions = [
+                'cost' => 12, // Ô½¸ßÔ½°²È«£¬µ«Ò²Ô½Âı£¬12ÊÇ±È½ÏÆ½ºâµÄÑ¡Ôñ
+            ];
+            
+            // Èç¹ûÏµÍ³Ö§³ÖArgon2Ëã·¨£¬ÓÅÏÈÊ¹ÓÃ¸ü°²È«µÄArgon2id
+            if (defined('PASSWORD_ARGON2ID')) {
+                $hash = password_hash($pass, PASSWORD_ARGON2ID, [
+                    'memory_cost' => 1<<17, // 128MBÄÚ´æ
+                    'time_cost' => 4,
+                    'threads' => 3,
+                ]);
+            } else {
+                $hash = password_hash($pass, PASSWORD_BCRYPT, $hashOptions);
+            }
+            
+            $stmt = $pdo->query("SELECT COUNT(*) FROM users");
             $isFirst = $stmt->fetchColumn() == 0; $role = $isFirst ? 'admin' : 'user';
             $stmt = $pdo->prepare("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)"); $stmt->execute([$user, $hash, $role]);
-            $pdo->commit();
             $result['success'] = true; $result['data'] = ['username' => $user, 'role' => $role, 'is_first' => $isFirst];
             return;
 
         case 'user_login':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = 'è¯·ä½¿ç”¨ POST'; return; }
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = 'ÇëÊ¹ÓÃ POST'; return; }
             $input = json_decode(file_get_contents('php://input'), true);
             $user = trim($input['username'] ?? ''); $pass = $input['password'] ?? '';
-            if (!$user || !$pass) { $result['error'] = 'è¯·è¾“å…¥ç”¨æˆ·åå’Œå¯†ç '; return; }
-            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'æ•°æ®åº“è¿æ¥å¤±è´¥'; return; }
+            if (!$user || !$pass) { $result['error'] = 'ÇëÊäÈëÓÃ»§ÃûºÍÃÜÂë'; return; }
+            
+            // µÇÂ¼ÑÓ³Ù£¬·ÀÖ¹±©Á¦ÆÆ½â
+            usleep(random_int(100000, 300000)); // Ëæ»úÑÓ³Ù0.1-0.3Ãë
+            
+            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'Êı¾İ¿âÁ¬½ÓÊ§°Ü'; return; }
             $stmt = $pdo->prepare("SELECT id, username, password_hash, role FROM users WHERE username = ?"); $stmt->execute([$user]);
             $row = $stmt->fetch();
-            if (!$row || !password_verify($pass, $row['password_hash'])) { $result['error'] = 'ç”¨æˆ·åæˆ–å¯†ç é”™è¯¯'; return; }
+            if (!$row || !password_verify($pass, $row['password_hash'])) { 
+                $result['error'] = 'ÓÃ»§Ãû»òÃÜÂë´íÎó'; 
+                return; 
+            }
+            
+            // ×Ô¶¯ÖØĞÂ¹şÏ££ºÈç¹ûÏµÍ³µÄ¹şÏ£²ÎÊıÉı¼¶ÁË£¬×Ô¶¯¸üĞÂÓÃ»§ÃÜÂëµÄ¹şÏ£Öµ
+            if (password_needs_rehash($row['password_hash'], PASSWORD_DEFAULT)) {
+                $newHash = password_hash($pass, PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+                $stmt->execute([$newHash, $row['id']]);
+            }
+            
             @session_start(); $_SESSION['admin'] = true; $_SESSION['user_id'] = $row['id']; $_SESSION['username'] = $row['username']; $_SESSION['role'] = $row['role'];
+            
+            // Ôö¼Ó»á»°°²È«ÅäÖÃ
+            ini_set('session.cookie_httponly', 1);
+            ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on');
+            ini_set('session.cookie_samesite', 'Strict');
+            session_regenerate_id(true); // ·ÀÖ¹»á»°¹Ì¶¨¹¥»÷
+            
             $result['success'] = true; $result['data'] = ['username' => $row['username'], 'role' => $row['role']];
             return;
 
         case 'user_logout':
-            @session_start(); $_SESSION = []; session_destroy(); $result['success'] = true; return;
+            @session_start(); $_SESSION = []; 
+            if (ini_get("session.use_cookies")) {
+                $params = session_get_cookie_params();
+                setcookie(session_name(), '', time() - 42000,
+                    $params["path"], $params["domain"],
+                    $params["secure"], $params["httponly"]
+                );
+            }
+            session_destroy(); 
+            $result['success'] = true; 
+            return;
 
         case 'user_info':
-            @session_start(); if (empty($_SESSION['admin'])) { $result['error'] = 'æœªç™»å½•'; return; }
-            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'æ•°æ®åº“è¿æ¥å¤±è´¥'; return; }
+            @session_start(); if (empty($_SESSION['admin'])) { $result['error'] = 'Î´µÇÂ¼'; return; }
+            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'Êı¾İ¿âÁ¬½ÓÊ§°Ü'; return; }
             $stmt = $pdo->prepare("SELECT id, username, role, api_key, created_at FROM users WHERE id = ?"); $stmt->execute([$_SESSION['user_id']]);
-            $row = $stmt->fetch(); if (!$row) { $result['error'] = 'ç”¨æˆ·ä¸å­˜åœ¨'; return; }
+            $row = $stmt->fetch(); if (!$row) { $result['error'] = 'ÓÃ»§²»´æÔÚ'; return; }
             $result['success'] = true; $result['data'] = $row; return;
 
         case 'user_api_key':
-            @session_start(); if (empty($_SESSION['admin'])) { $result['error'] = 'æœªç™»å½•'; return; }
-            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'æ•°æ®åº“è¿æ¥å¤±è´¥'; return; }
+            @session_start(); if (empty($_SESSION['admin'])) { $result['error'] = 'Î´µÇÂ¼'; return; }
+            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'Êı¾İ¿âÁ¬½ÓÊ§°Ü'; return; }
             try { $pdo->exec("ALTER TABLE users ADD COLUMN api_key VARCHAR(64) DEFAULT NULL"); } catch (Exception $e) {}
             $input = json_decode(file_get_contents('php://input'), true);
             $regenerate = ($input['regenerate'] ?? false) || ($_GET['regenerate'] ?? false);
@@ -59,15 +112,15 @@ function handle_user(&$result, $source, $query, $cfg, $key) {
             $result['success'] = true; $result['data'] = ['api_key' => $key]; return;
 
         case 'user_list':
-            @session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'æ— æƒé™'; return; }
-            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'æ•°æ®åº“è¿æ¥å¤±è´¥'; return; }
+            @session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'permission denied'; return; }
+            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'Êı¾İ¿âÁ¬½ÓÊ§°Ü'; return; }
             $stmt = $pdo->query("SELECT id, username, role, created_at FROM users ORDER BY id"); $result['success'] = true; $result['data'] = $stmt->fetchAll(); return;
 
         case 'user_delete':
-            @session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'æ— æƒé™'; return; }
-            $id = intval($_GET['id'] ?? 0); if ($id <= 0) { $result['error'] = 'æ— æ•ˆç”¨æˆ·'; return; }
-            if ($id === $_SESSION['user_id']) { $result['error'] = 'ä¸èƒ½åˆ é™¤è‡ªå·±'; return; }
-            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'æ•°æ®åº“è¿æ¥å¤±è´¥'; return; }
+            @session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'permission denied'; return; }
+            $id = intval($_GET['id'] ?? 0); if ($id <= 0) { $result['error'] = 'ÎŞĞ§ÓÃ»§'; return; }
+            if ($id === $_SESSION['user_id']) { $result['error'] = '²»ÄÜÉ¾³ı×Ô¼º'; return; }
+            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'Êı¾İ¿âÁ¬½ÓÊ§°Ü'; return; }
             $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?"); $stmt->execute([$id]);
             $result['success'] = true; return;
     }

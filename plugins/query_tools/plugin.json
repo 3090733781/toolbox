@@ -1,0 +1,11 @@
+{
+  "name": "实用查询工具",
+  "version": "1.0.0",
+  "description": "数字金额大写、区号邮编查询、世界各国查询、亲戚称呼计算",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🔍",
+  "api": [],
+  "config": false
+}

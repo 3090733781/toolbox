@@ -19,10 +19,9 @@ function storageList() {
 }
 function storageDownload($name) {
     $fp = __DIR__ . '/../uploads/' . basename($name);
-    if (!file_exists($fp)) { http_response_code(404); exit; }
-    $bn = basename($name);
+    if (!file_exists($fp)) { header('HTTP/1.0 404'); exit; }
     header('Content-Type: ' . (function_exists('mime_content_type') ? (mime_content_type($fp) ?: 'application/octet-stream') : 'application/octet-stream'));
     header('Content-Length: ' . filesize($fp));
-    header("Content-Disposition: inline; filename=\"" . str_replace(['"', "\r", "\n"], '', $bn) . "\"; filename*=UTF-8''" . rawurlencode($bn));
+    header('Content-Disposition: inline; filename="' . basename($name) . '"');
     readfile($fp); exit;
 }

@@ -1,0 +1,11 @@
+{
+  "name": "音乐解锁",
+  "version": "1.0.0",
+  "description": "解锁加密音乐文件（.ncm/.qmc/.mflac/.mgg等），支持批量解密，基于 Unlock Music",
+  "author": "um-react",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🎵",
+  "api": [],
+  "config": false
+}

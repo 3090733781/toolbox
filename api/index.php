@@ -1,6 +1,9 @@
 <?php
-error_reporting(0);
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/../error.log');
+
 function loadConfig() {
     $fp = __DIR__ . '/../config.json';
     return file_exists($fp) ? json_decode(file_get_contents($fp), true) : [];
@@ -55,7 +58,6 @@ function httpGet($url, $timeout = 8) {
 }
 
 function httpGetRaw($url, $timeout = 8) {
-    if (!function_exists('curl_init')) return false;
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $url, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout,
@@ -72,18 +74,33 @@ function jsonExit($data) {
     exit;
 }
 
+// ¹«¿ªAPI°×Ãûµ¥£¬Ö»ÓÐÕâÐ©½Ó¿ÚÔÊÐíÄäÃû·ÃÎÊ
+$publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','link_list','market_list','plugin_list'];
 $source = $_GET['source'] ?? 'ip-api';
 $query = $_GET['query'] ?? '';
 $cfg = loadConfig();
 $key = $cfg['amap_key'] ?? '';
 $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => null];
 
-// å®‰è£…æ£€æŸ¥ï¼šæœªå®‰è£…æ—¶ä»…å…è®¸å…¬å¼€ API
-if (empty($cfg['installed'])) {
-    $publicSources = ['file_config','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_list','cat_list','link_list','market_list','plugin_list'];
-    if (!in_array($source, $publicSources, true)) {
-        jsonExit(array_merge($result, ['error' => 'è¯·å…ˆå®Œæˆå®‰è£…']));
+// Ð£ÑéAPIÈ¨ÏÞ
+$adminSources = ['user_delete', 'user_list', 'plugin_delete', 'plugin_install', 'cat_add', 'cat_delete', 'cat_mode', 'cat_batch_mode', 'link_add', 'link_delete', 'admin_files'];
+$userSources = ['file_upload', 'file_upload_array', 'file_delete', 'file_download', 'user_logout', 'user_info', 'user_api_key'];
+
+if (in_array($source, $adminSources)) {
+    // ¹ÜÀíÔ±½Ó¿Úadmin permission required
+    $u = authUser();
+    if (!$u || $u['role'] !== 'admin') {
+        jsonExit(array_merge($result, ['error' => 'admin permission required']));
     }
+} elseif (in_array($source, $userSources)) {
+    // ÓÃ»§½Ó¿Úlogin requiredÈ¨ÏÞ
+    $u = authUser();
+    if (!$u) {
+        jsonExit(array_merge($result, ['error' => 'login required']));
+    }
+} elseif (!in_array($source, $publicSources) && empty($cfg['installed'])) {
+    // Î´°²×°Ê±½öÔÊÐí¹«¿ª½Ó¿Ú·ÃÎÊ
+    jsonExit(array_merge($result, ['error' => 'please complete installation first']));
 }
 
 $moduleMap = [
@@ -121,7 +138,7 @@ try {
                 $manifest = json_decode(file_get_contents($mf), true);
                 $apis = $manifest['api'] ?? [];
                 if (in_array($source, $apis)) {
-                    $entry = basename($manifest['entry'] ?? 'index.php');
+                    $entry = $manifest['entry'] ?? 'index.php';
                     $entryFile = "{$pluginsDir}/{$pname}/{$entry}";
                     if (file_exists($entryFile)) {
                         include $entryFile;
@@ -134,6 +151,7 @@ try {
         }
     }
 } catch (Exception $e) {
-    $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => 'æœåŠ¡å™¨å†…éƒ¨é”™è¯¯'];
+    error_log("API Error: " . $e->getMessage());
+    $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => '·þÎñÆ÷ÄÚ²¿´íÎó'];
 }
 echo json_encode($result, JSON_UNESCAPED_UNICODE);

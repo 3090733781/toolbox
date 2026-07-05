@@ -25,7 +25,7 @@ function checkEnv() {
 function dbHasTables($pdo, $dbname) {
     $pdo->exec("USE `{$dbname}`");
     $stmt = $pdo->query("SHOW TABLES");
-    return count($stmt->fetchAll()) > 0;
+    return $stmt->rowCount() > 0;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3) {
@@ -57,8 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3) {
             $stmt = $pdo->prepare("INSERT IGNORE INTO `settings` (`key`, `value`) VALUES ('db_version', '1.0.0')");
             $stmt->execute();
             $hash = password_hash('123456', PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("INSERT IGNORE INTO `users` (`username`, `password_hash`, `role`) VALUES ('admin', ?, 'admin')");
-            $stmt->execute([$hash]);
+            $pdo->exec("INSERT IGNORE INTO `users` (`username`, `password_hash`, `role`) VALUES ('admin', '{$hash}', 'admin')");
             $cfg = json_decode(file_get_contents(__DIR__ . '/../config.json'), true) ?: [];
             $cfg['db'] = ['host' => $host, 'port' => $port, 'user' => $user, 'pass' => $pass, 'name' => $dbname];
             $cfg['installed'] = true;

@@ -17,8 +17,6 @@ function handle_category(&$result, $source, $query, $cfg, $key) {
             return;
 
         case 'cat_add':
-            @session_start();
-            if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = '无权限'; return; }
             $input = json_decode(file_get_contents('php://input'), true);
             $name = trim($input['name'] ?? '');
             $mode = $input['mode'] ?? 'list';
@@ -29,8 +27,6 @@ function handle_category(&$result, $source, $query, $cfg, $key) {
             return;
 
         case 'cat_delete':
-            @session_start();
-            if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = '无权限'; return; }
             $id = intval($_GET['id'] ?? 0);
             if ($id <= 0) { $result['error'] = '无效ID'; return; }
             $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
@@ -58,9 +54,6 @@ function handle_category(&$result, $source, $query, $cfg, $key) {
             if (!in_array($mode, ['list','top'])) { $result['error'] = '无效模式'; return; }
             $ids = $input['ids'] ?? [];
             if (!is_array($ids) || empty($ids)) { $result['error'] = '请选择分类'; return; }
-            $ids = array_map('intval', $ids);
-            $ids = array_values(array_filter($ids, function($id) { return $id > 0; }));
-            if (empty($ids)) { $result['error'] = '无有效分类ID'; return; }
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
             $stmt = $pdo->prepare("UPDATE categories SET mode = ? WHERE id IN ($placeholders)");
             $stmt->execute(array_merge([$mode], $ids));

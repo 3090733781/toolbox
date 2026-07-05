@@ -1,0 +1,11 @@
+﻿{
+  "name": "时间戳转换",
+  "version": "1.0.0",
+  "description": "时间戳与日期时间相互转换工具",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "⏰",
+  "api": ["timestamp_convert"],
+  "config": false
+}

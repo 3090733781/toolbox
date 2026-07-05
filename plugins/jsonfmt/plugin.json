@@ -1,0 +1,11 @@
+﻿{
+  "name": "JSON格式化",
+  "version": "1.0.0",
+  "description": "JSON格式化与压缩工具，支持错误提示",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "📋",
+  "api": ["json_format"],
+  "config": false
+}

@@ -1,12 +1,27 @@
-# å¼€å‘æŠ€èƒ½å¡ï¼ˆä»…æœ¬åœ°ä½¿ç”¨ï¼‰
-toolbox.skill.md
+# GitHub CLI¹¤¾ß
+gh/
+gh_config/
 
-# ç¬¬ä¸‰æ–¹æ’ä»¶ï¼ˆä¸çº³å…¥ä»“åº“ï¼‰
-plugins/sky_daily/
-plugins/music_unlock/
+# ÎŞ¹ØÄ¿Â¼
+FeverGames/
 
-# è¿è¡Œæ—¶æ–‡ä»¶
+# ÉÏ´«ÎÄ¼ş
 uploads/*
 !uploads/.gitkeep
-config.json
-install/install.lock
+
+# ÈÕÖ¾ÎÄ¼ş
+error.log
+
+# Ñ¹Ëõ°ü
+*.zip
+
+# ²Ù×÷ÏµÍ³ÎÄ¼ş
+.DS_Store
+Thumbs.db
+
+# ±à¼­Æ÷ÎÄ¼ş
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

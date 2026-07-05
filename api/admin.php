@@ -2,29 +2,76 @@
 function handle_admin(&$result, $source, $query, $cfg, $key) {
     switch ($source) {
         case 'admin_login':
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = 'è¯·ä½¿ç”¨ POST'; return; }
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = 'ÇëÊ¹ÓÃ POST'; return; }
             $input = json_decode(file_get_contents('php://input'), true);
             $pwd = $input['password'] ?? ''; $hash = $cfg['password_hash'] ?? '';
             if (!$hash) { $result['success'] = true; $result['data'] = ['need_setup' => true]; return; }
-            if (password_verify($pwd, $hash)) { @session_start(); $_SESSION['admin'] = true; $_SESSION['role'] = 'admin'; $result['success'] = true; }
-            else { $result['error'] = 'å¯†ç é”™è¯¯'; }
+            if (password_verify($pwd, $hash)) { @session_start(); $_SESSION['admin'] = true; $result['success'] = true; }
+            else { $result['error'] = 'ÃÜÂë´íÎó'; }
             return;
 
         case 'admin_check':
             @session_start(); $result['success'] = !empty($_SESSION['admin']); return;
 
         case 'admin_logout':
-            @session_start(); $_SESSION = []; session_destroy(); $result['success'] = true; return;
+            @session_start(); $_SESSION = []; 
+            if (ini_get("session.use_cookies")) {
+                $params = session_get_cookie_params();
+                setcookie(session_name(), '', time() - 42000,
+                    $params["path"], $params["domain"],
+                    $params["secure"], $params["httponly"]
+                );
+            }
+            session_destroy(); 
+            $result['success'] = true; 
+            return;
 
         case 'admin_save':
             @session_start(); $cfg = loadConfig();
             $rawBody = file_get_contents('php://input'); $input = json_decode($rawBody, true);
-            if (!$input) { $result['error'] = 'æ— æ•ˆæ•°æ®'; return; }
-            $needAuth = !(empty($cfg['password_hash']) && !empty($input['password'] ?? ''));
-            if ($needAuth && (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin')) { $result['error'] = 'æ— æƒé™'; return; }
-            if (!empty($input['amap_key']) && $_SESSION['role'] !== 'admin') { $result['error'] = 'ä»…ç®¡ç†å‘˜å¯ä¿®æ”¹é…ç½®'; return; }
+            if (!$input) { $result['error'] = 'invalid data'; return; }
+            
+            $isFirstSetup = empty($cfg['password_hash']) && !empty($input['password'] ?? '');
+            if ($isFirstSetup) {
+                // Ê×´Î°²×°Ê±Ö»ÄÜÔÚ±¾µØ»òÕß°²×°Ïòµ¼Ò³ÃæÉèÖÃÃÜÂë
+                $localIPs = ['127.0.0.1', '::1', 'localhost'];
+                $clientIP = $_SERVER['REMOTE_ADDR'] ?? '';
+                $referer = $_SERVER['HTTP_REFERER'] ?? '';
+                $isInstallPage = strpos($referer, '/install/') !== false;
+                if (!$isInstallPage && !in_array($clientIP, $localIPs)) {
+                    $result['error'] = 'first admin password setup must be performed locally or via installer';
+                    return;
+                }
+            } elseif (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+                $result['error'] = 'permission denied';
+                return;
+            }
+            
+            if (!empty($input['amap_key']) && (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin')) { $result['error'] = 'admin only'; return; }
             if (!empty($input['password'])) {
-                $cfg['password_hash'] = password_hash($input['password'], PASSWORD_DEFAULT);
+                // ÓÅ»¯¹şÏ£Ëã·¨£¬ºÍÓÃ»§Ä£¿é±£³ÖÒ»ÖÂ
+                if (strlen($input['password']) < 6) {
+                    $result['error'] = 'admin password must be at least 6 characters';
+                    return;
+                }
+                if (!preg_match('/[A-Za-z].*[0-9]|[0-9].*[A-Za-z]/', $input['password'])) { 
+                    $result['error'] = 'password must contain both letters and numbers'; 
+                    return; 
+                }
+                
+                // Ê¹ÓÃ¸ü°²È«µÄ¹şÏ£Ëã·¨
+                if (defined('PASSWORD_ARGON2ID')) {
+                    $cfg['password_hash'] = password_hash($input['password'], PASSWORD_ARGON2ID, [
+                        'memory_cost' => 1<<17,
+                        'time_cost' => 4,
+                        'threads' => 3,
+                    ]);
+                } else {
+                    $cfg['password_hash'] = password_hash($input['password'], PASSWORD_BCRYPT, [
+                        'cost' => 12,
+                    ]);
+                }
+                
                 $pdo = dbConnect();
                 if ($pdo && !empty($_SESSION['user_id'])) {
                     $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
@@ -44,8 +91,8 @@ function handle_admin(&$result, $source, $query, $cfg, $key) {
             $result['success'] = true; return;
 
         case 'admin_files':
-            @session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'æ— æƒé™'; return; }
-            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'æ•°æ®åº“è¿æ¥å¤±è´¥'; return; }
+            @session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'permission denied'; return; }
+            $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'Êı¾İ¿âÁ¬½ÓÊ§°Ü'; return; }
             try {
                 $pdo->exec("CREATE TABLE IF NOT EXISTS `files` (`id` INT AUTO_INCREMENT PRIMARY KEY, `name` VARCHAR(255) NOT NULL, `size` BIGINT NOT NULL DEFAULT 0, `type` VARCHAR(100), `uploaded_at` DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
                 try { $pdo->exec("ALTER TABLE files ADD COLUMN user_id INT DEFAULT 0"); } catch (Exception $e) {}
@@ -62,13 +109,13 @@ function handle_admin(&$result, $source, $query, $cfg, $key) {
                         if (isset($dbMap[$fn])) {
                             $files[] = $dbMap[$fn];
                         } else {
-                            $files[] = ['id' => 0, 'name' => $fn, 'size' => filesize($fp), 'type' => '', 'uploaded_at' => date('Y-m-d H:i:s', filemtime($fp)), 'user_id' => 0, 'username' => 'æœªçŸ¥'];
+                            $files[] = ['id' => 0, 'name' => $fn, 'size' => filesize($fp), 'type' => '', 'uploaded_at' => date('Y-m-d H:i:s', filemtime($fp)), 'user_id' => 0, 'username' => 'Î´Öª'];
                         }
                     }
                 }
                 usort($files, function($a, $b) { return strtotime($b['uploaded_at']) - strtotime($a['uploaded_at']); });
                 $result['data'] = $files; $result['success'] = true;
-            } catch (Exception $e) { $result['error'] = 'æŸ¥è¯¢å¤±è´¥: ' . $e->getMessage(); }
+            } catch (Exception $e) { $result['error'] = '²éÑ¯Ê§°Ü: ' . $e['message']; }
             return;
     }
 }
