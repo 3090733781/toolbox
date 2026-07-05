@@ -194,6 +194,82 @@ color:#555;font-size:12px;cursor:pointer;transition:all .15s;display:flex;align-
 .modal .form-row a{color:#4f6af5;text-decoration:none;font-weight:600;cursor:pointer}
 .modal .form-row a:hover{text-decoration:underline}
 .modal .modal-err{color:#e74c3c;font-size:12px;margin-top:8px;display:none}
+
+/* 2026 UI refresh: frontend polish layer */
+:root{--ui-bg:#f1f5f8;--ui-card:#fff;--ui-text:#182233;--ui-muted:#667386;--ui-line:#dbe4ee;--ui-primary:#137cbd;--ui-primary-dark:#0f6ca6;--ui-accent:#13a37f;--ui-warn:#d98b22;--ui-danger:#d84a3a;--ui-shadow:0 18px 44px rgba(31,45,61,.08);--ui-radius:8px}
+body{background:linear-gradient(180deg,#f8fbfd 0,#f1f5f8 48%,#eaf0f6 100%);color:var(--ui-text);font-size:14px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(circle at 12% 0,rgba(19,124,189,.08),transparent 34%),radial-gradient(circle at 92% 6%,rgba(19,163,127,.08),transparent 30%)}
+nav{background:rgba(255,255,255,.9);border-bottom:1px solid rgba(126,143,164,.22);box-shadow:0 12px 30px rgba(31,45,61,.06);backdrop-filter:blur(14px)}
+.nav-inner{max-width:1120px;height:64px}
+.nav-brand{display:flex;align-items:center;gap:8px;margin-right:28px;color:var(--ui-text);font-weight:850;letter-spacing:0}
+.nav-brand::before{content:"";width:10px;height:10px;border-radius:99px;background:var(--ui-accent);box-shadow:0 0 0 5px rgba(19,163,127,.12)}
+.nav-link{min-height:36px;padding:8px 14px;border:1px solid transparent;border-radius:7px;color:#536173;font-weight:750}
+.nav-link:hover{background:#f2f7fb;border-color:#dde8f1;color:var(--ui-primary)}
+.nav-link.active{background:#e8f5ff;border-color:#cbe7fb;color:#0f6ca6;box-shadow:0 8px 20px rgba(19,124,189,.08)}
+.user-btn{min-height:34px;border-radius:7px;border-color:#ccd7e3;color:#536173;font-weight:750}
+.user-btn:hover{background:#f2f7fb;border-color:var(--ui-primary);color:var(--ui-primary)}
+.user-btn.primary{background:var(--ui-primary);border-color:var(--ui-primary);box-shadow:0 8px 18px rgba(19,124,189,.18)}
+.user-btn.primary:hover{background:var(--ui-primary-dark)}
+.tool-page{max-width:1120px;padding:34px 20px}
+.hero{padding:42px 0 34px;text-align:left}
+.hero h1{font-size:34px;line-height:1.15;color:var(--ui-text);letter-spacing:0}
+.hero p{max-width:680px;margin:10px 0 0;color:var(--ui-muted);font-size:15px}
+.search-box,.ip-input-wrap{max-width:760px;margin-left:0;border:1px solid var(--ui-line);border-radius:8px;background:rgba(255,255,255,.98);box-shadow:var(--ui-shadow)}
+.search-box:focus-within,.ip-input-wrap:focus-within{border-color:var(--ui-primary);box-shadow:0 0 0 3px rgba(19,124,189,.13),var(--ui-shadow)}
+.search-box input,.ip-input-wrap input{color:var(--ui-text)}
+.search-box button,.ip-input-wrap button{background:var(--ui-primary);font-weight:800}
+.search-box button:hover,.ip-input-wrap button:hover{background:var(--ui-primary-dark)}
+.card{border:1px solid rgba(126,143,164,.24);border-radius:8px;background:rgba(255,255,255,.96);box-shadow:var(--ui-shadow);padding:24px}
+.card-title{padding-bottom:12px;border-bottom:1px solid #edf2f6;color:var(--ui-text);font-size:16px;font-weight:850}
+.card-sm{padding:20px}
+.row{border-bottom-color:#edf2f6}
+.row-label{color:#718094;font-weight:750}
+.row-value{color:var(--ui-text)}
+.stats{gap:14px}
+.stat{position:relative;overflow:hidden;min-height:96px;border:1px solid rgba(126,143,164,.22);border-radius:8px;background:#fff;text-align:left;box-shadow:0 14px 34px rgba(31,45,61,.06)}
+.stat::after{content:"";position:absolute;right:16px;top:16px;width:34px;height:34px;border-radius:999px;background:#e8f5ff;border:1px solid #cbe7fb}
+.stat:nth-child(2)::after{background:#edf9f3;border-color:#c6ecd8}
+.stat:nth-child(3)::after{background:#fff7e8;border-color:#f6d8a6}
+.stat:nth-child(4)::after{background:#f4efff;border-color:#ddd2ff}
+.stat-num{position:relative;z-index:1;color:var(--ui-text)}
+.stat-label{position:relative;z-index:1;color:var(--ui-muted);font-weight:750}
+.badge,.tag{border-radius:999px;background:#edf4fa;color:#536173;font-weight:750}
+.btn,.file-btn,.copy-btn{border-radius:7px;border-color:#cfd9e5;background:#fff;color:#536173;font-weight:750}
+.btn:hover,.file-btn:hover,.copy-btn:hover{background:#f0fbf7;border-color:var(--ui-accent);color:#0f705d}
+.btn.active{background:var(--ui-primary);border-color:var(--ui-primary);color:#fff}
+.drop-zone{border-color:#cbd7e4;border-radius:8px;background:#fbfdff}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--ui-primary);background:#eef8ff}
+.file-item{border-color:#dfe7f0;border-radius:8px;box-shadow:0 8px 20px rgba(31,45,61,.04)}
+.file-item:hover{transform:translateY(-1px);border-color:#c7d6e5;box-shadow:0 14px 28px rgba(31,45,61,.07)}
+.raw-box{border-color:#dfe7f0;border-radius:8px;background:#f8fbfd;color:#435064}
+.modal-overlay{background:rgba(15,23,42,.48);backdrop-filter:blur(6px)}
+.modal{border:1px solid rgba(126,143,164,.24);border-radius:8px;box-shadow:0 24px 70px rgba(15,23,42,.22)}
+.modal h2{color:var(--ui-text)}
+.modal p{color:var(--ui-muted)}
+.modal .form-group input{border:1px solid #ccd7e3;border-radius:7px}
+.modal .form-group input:focus{border-color:var(--ui-primary);box-shadow:0 0 0 3px rgba(19,124,189,.13)}
+.loading{color:var(--ui-muted)}
+.spinner{border-color:#dce6ef;border-top-color:var(--ui-accent)}
+.error{color:var(--ui-danger)}
+@media(max-width:768px){
+  .nav-inner{height:58px}
+  .nav-brand{font-size:14px;margin-right:8px}
+  .nav-link{min-height:34px;border-radius:6px}
+  .nav-right{gap:6px}
+  .tool-page{padding:20px 12px}
+  .hero{text-align:left;padding:26px 0 22px}
+  .hero h1{font-size:25px}
+  .search-box,.ip-input-wrap{max-width:none}
+  .card{padding:18px 15px}
+  .stats{grid-template-columns:1fr 1fr}
+  .file-actions{flex-wrap:wrap;justify-content:flex-end}
+}
+@media(max-width:520px){
+  .search-box,.ip-input-wrap{display:block;overflow:visible}
+  .search-box input,.ip-input-wrap input{width:100%}
+  .search-box button,.ip-input-wrap button{width:100%;border-radius:0 0 8px 8px}
+  .stats{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>

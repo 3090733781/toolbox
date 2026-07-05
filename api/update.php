@@ -241,8 +241,23 @@ function updateManifestSummary($manifest, $includeUrl) {
         'latest_version' => $manifest['latest_version'] ?? ($manifest['version'] ?? ''),
         'step_update' => !empty($manifest['step_update']),
     ];
+    if (isset($manifest['authorization']) && is_array($manifest['authorization'])) {
+        $summary['authorization'] = updateNormalizeAuthorization($manifest['authorization']);
+    }
     if ($includeUrl) $summary['package_url'] = $manifest['package_url'];
     return $summary;
+}
+
+function updateNormalizeAuthorization($auth) {
+    return [
+        'domain' => (string)($auth['domain'] ?? ''),
+        'qq' => (string)($auth['qq'] ?? ''),
+        'expires_at' => (string)($auth['expires_at'] ?? ''),
+        'status' => (string)($auth['status'] ?? ''),
+        'days_left' => isset($auth['days_left']) ? $auth['days_left'] : null,
+        'permanent' => !empty($auth['permanent']),
+        'banned' => !empty($auth['banned']),
+    ];
 }
 
 function updateHttpJson($url, $options) {

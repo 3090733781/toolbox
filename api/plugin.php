@@ -19,7 +19,10 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
 
         case 'plugin_install':
             if (!pluginRequireAdmin($result)) return;
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_FILES['file'])) { $result['error'] = '请上传插件 ZIP 包'; return; }
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_FILES['file'])) {
+                $result['error'] = '请上传插件 ZIP 包';
+                return;
+            }
             $installed = pluginInstallUploaded($_FILES['file']);
             if (!$installed['success']) { $result['error'] = $installed['error']; return; }
             $result['success'] = true;
@@ -37,12 +40,13 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
             unset($plugin);
             $result['success'] = true;
             $result['data'] = $listed['data'];
+            if (isset($listed['authorization'])) $result['authorization'] = $listed['authorization'];
             return;
 
         case 'plugin_center_install':
             if (!pluginRequireAdmin($result)) return;
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = '必须使用 POST 请求'; return; }
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = pluginJsonDecode(file_get_contents('php://input'));
             if (!is_array($input)) $input = [];
             $pluginId = trim($input['id'] ?? '');
             if ($pluginId === '') { $result['error'] = '缺少插件编号'; return; }
@@ -86,7 +90,9 @@ function pluginCenterFetchList($cfg) {
     $url = $options['endpoint'] . (strpos($options['endpoint'], '?') === false ? '?' : '&') . http_build_query(['domain' => pluginCurrentDomain()]);
     $json = pluginHttpJson($url, $options);
     if (!$json || !is_array($json)) return ['success' => false, 'error' => '无法读取插件中心'];
-    if (isset($json['success']) && !$json['success']) return ['success' => false, 'error' => $json['error'] ?? '插件中心拒绝访问'];
+    if (isset($json['success']) && !$json['success']) {
+        return ['success' => false, 'error' => $json['error'] ?? '插件中心拒绝访问'];
+    }
     $items = isset($json['data']) && is_array($json['data']) ? $json['data'] : $json;
     if (!is_array($items)) return ['success' => false, 'error' => '插件中心返回格式不正确'];
     $out = [];
@@ -96,7 +102,11 @@ function pluginCenterFetchList($cfg) {
         if (!$valid['success']) return $valid;
         $out[] = $item;
     }
-    return ['success' => true, 'data' => $out];
+    $result = ['success' => true, 'data' => $out];
+    if (isset($json['authorization']) && is_array($json['authorization'])) {
+        $result['authorization'] = pluginNormalizeAuthorization($json['authorization']);
+    }
+    return $result;
 }
 
 function pluginCenterInstall($cfg, $id) {
@@ -139,7 +149,7 @@ function pluginCenterOptions($cfg) {
     $update = is_array($cfg['update'] ?? null) ? $cfg['update'] : [];
     $upFile = __DIR__ . '/../up.json';
     if (is_file($upFile)) {
-        $up = json_decode(file_get_contents($upFile), true);
+        $up = pluginJsonDecode(file_get_contents($upFile));
         if (is_array($up)) {
             if (empty($center)) $center = is_array($up['plugin_center'] ?? null) ? $up['plugin_center'] : [];
             if (empty($update)) $update = is_array($up['update'] ?? null) ? $up['update'] : $up;
@@ -161,7 +171,9 @@ function pluginCenterOptions($cfg) {
 
 function pluginValidateRemoteManifest($manifest, $options) {
     foreach (['id', 'plugin_id', 'version', 'package_url', 'sha256'] as $field) {
-        if (empty($manifest[$field]) || !is_string($manifest[$field])) return ['success' => false, 'error' => '插件中心缺少字段：' . $field];
+        if (empty($manifest[$field]) || !is_string($manifest[$field])) {
+            return ['success' => false, 'error' => '插件中心缺少字段：' . $field];
+        }
     }
     if (!preg_match('/^[A-Za-z0-9_.-]{2,80}$/', $manifest['plugin_id'])) return ['success' => false, 'error' => '插件标识格式不正确'];
     if (!preg_match('/^[a-f0-9]{64}$/i', $manifest['sha256'])) return ['success' => false, 'error' => '插件 SHA256 格式不正确'];
@@ -215,7 +227,7 @@ function pluginInstallZip($zipFile, $fallbackName) {
     $zip->close();
     $manifestFile = $targetDir . DIRECTORY_SEPARATOR . 'plugin.json';
     if (!is_file($manifestFile)) { deleteDir($targetDir); return ['success' => false, 'error' => '插件包缺少 plugin.json']; }
-    $manifest = json_decode(file_get_contents($manifestFile), true);
+    $manifest = pluginJsonDecode(file_get_contents($manifestFile));
     if (!is_array($manifest)) { deleteDir($targetDir); return ['success' => false, 'error' => 'plugin.json 格式不正确']; }
     return ['success' => true, 'data' => ['name' => $pluginName, 'manifest' => $manifest]];
 }
@@ -240,7 +252,7 @@ function pluginScanZip($zip, $fallbackName) {
             if ($entry !== $rootDir . '/' && strpos($entry, $rootDir . '/') !== 0) return ['success' => false, 'error' => '插件包只能包含同一个插件目录'];
         }
     }
-    $manifest = json_decode($zip->getFromName($manifestEntry), true);
+    $manifest = pluginJsonDecode($zip->getFromName($manifestEntry));
     if (!is_array($manifest)) return ['success' => false, 'error' => 'plugin.json 格式不正确'];
     $pluginName = $rootDir ?: ($manifest['id'] ?? ($manifest['plugin_id'] ?? $fallbackName));
     $pluginName = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string)$pluginName);
@@ -268,7 +280,7 @@ function scanPlugins() {
         if ($name === 'market') continue;
         $manifestFile = $dir . $name . '/plugin.json';
         if (!file_exists($manifestFile)) continue;
-        $manifest = json_decode(file_get_contents($manifestFile), true);
+        $manifest = pluginJsonDecode(file_get_contents($manifestFile));
         $plugins[] = [
             'name' => $name,
             'manifest' => $manifest,
@@ -287,15 +299,13 @@ function pluginInstalledNames() {
         if (!empty($manifest['id'])) $names[] = (string)$manifest['id'];
         if (!empty($manifest['plugin_id'])) $names[] = (string)$manifest['plugin_id'];
     }
-    $names = array_values(array_unique($names));
-    return $names;
+    return array_values(array_unique($names));
 }
 
 function pluginHttpJson($url, $options) {
     $body = pluginHttpGet($url, 20, $options, ['Accept: application/json']);
     if ($body === false || $body === '') return null;
-    $json = json_decode($body, true);
-    return is_array($json) ? $json : null;
+    return pluginJsonDecode($body);
 }
 
 function pluginHttpGet($url, $timeout, $options, $headers = []) {
@@ -402,6 +412,25 @@ function pluginCurrentDomain() {
     $host = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? '');
     $host = strtolower(trim((string)$host));
     return preg_replace('/:\d+$/', '', $host);
+}
+
+function pluginNormalizeAuthorization($auth) {
+    return [
+        'domain' => (string)($auth['domain'] ?? ''),
+        'qq' => (string)($auth['qq'] ?? ''),
+        'expires_at' => (string)($auth['expires_at'] ?? ''),
+        'status' => (string)($auth['status'] ?? ''),
+        'days_left' => isset($auth['days_left']) ? $auth['days_left'] : null,
+        'permanent' => !empty($auth['permanent']),
+        'banned' => !empty($auth['banned']),
+    ];
+}
+
+function pluginJsonDecode($raw) {
+    if (!is_string($raw)) return null;
+    $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
+    $json = json_decode($raw, true);
+    return is_array($json) ? $json : null;
 }
 
 function pluginSafeRelativePath($path) {

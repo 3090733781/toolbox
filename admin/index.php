@@ -46,7 +46,7 @@ if (!in_array($p, $pages, true)) $p = 'dashboard';
 <meta charset="utf-8">
 <title><?= htmlspecialchars($pageTitle[$p], ENT_QUOTES, 'UTF-8') ?> - 工具箱管理后台</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<link rel="stylesheet" href="css/admin.css?v=2.6">
+<link rel="stylesheet" href="css/admin.css?v=2.7">
 </head>
 <body>
 <div class="header">
