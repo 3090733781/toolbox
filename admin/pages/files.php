@@ -1,0 +1,6 @@
+﻿<?php if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') return; ?>
+<div class="card"><div class="card-title">📁 文件管理</div><div id="adminFileList"><div class="loading"><div class="spinner"></div>加载中...</div></div></div>
+<script>
+function loadAdminFiles(){fetch('../api/index.php?source=admin_files').then(r=>r.json()).then(function(d){var el=document.getElementById('adminFileList');if(!d.success){el.innerHTML='<div class=err>'+esc(d.error)+'</div>';return}if(!d.data.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#aaa">暂无文件</div>';return}el.innerHTML='<table><thead><tr><th>文件名</th><th>大小</th><th>上传者</th><th>时间</th><th>操作</th></tr></thead><tbody>'+d.data.map(function(f){return '<tr><td>'+esc(f.name)+'</td><td>'+(f.size/1024).toFixed(1)+'KB</td><td>'+esc(f.username||'未知')+'</td><td>'+(f.uploaded_at||'')+'</td><td><button class="btn btn-sm" onclick="if(confirm(\'确定删除？\')){fetch(\'../api/index.php?source=file_delete&file='+encodeURIComponent(f.name)+'\').then(r=>r.json()).then(function(d2){if(d2.success)loadAdminFiles();else alert(d2.error)}).catch(function(){alert(\'网络错误\')})}">删除</button></td></tr>'}).join('')+'</tbody></table>'}).catch(function(){document.getElementById('adminFileList').innerHTML='<div class=err>加载失败</div>'})}
+loadAdminFiles();
+</script>

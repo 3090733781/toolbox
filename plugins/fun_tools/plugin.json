@@ -1,0 +1,11 @@
+{
+  "name": "趣味小工具",
+  "version": "1.0.0",
+  "description": "摸鱼日历、今天吃什么、土味情话、彩虹屁生成器、随机决策器",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🎮",
+  "api": [],
+  "config": false
+}

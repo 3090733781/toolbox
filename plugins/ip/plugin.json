@@ -1,0 +1,7 @@
+{
+    "name": "IP定位",
+    "version": "1.0.0",
+    "description": "IP地址地理位置查询，支持多个数据源",
+    "author": "工具箱",
+    "type": "tool"
+}

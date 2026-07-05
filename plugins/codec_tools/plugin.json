@@ -1,0 +1,11 @@
+{
+  "name": "编码解码工具箱",
+  "version": "1.0.0",
+  "description": "摩斯电码、凯撒密码、ROT13、栅栏密码、培根密码、Brainfuck、HTML实体编码、Unicode编码",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🔐",
+  "api": [],
+  "config": false
+}

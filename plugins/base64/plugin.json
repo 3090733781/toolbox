@@ -1,0 +1,11 @@
+﻿{
+  "name": "Base64编码解码",
+  "version": "1.0.0",
+  "description": "文本与Base64编码相互转换工具",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🔢",
+  "api": ["base64_convert"],
+  "config": false
+}

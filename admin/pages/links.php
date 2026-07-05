@@ -1,0 +1,10 @@
+﻿<?php if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') return; ?>
+<div class="card"><div class="card-title">🔗 友链管理</div>
+<div style="display:flex;gap:8px;margin-bottom:16px"><input type="text" id="linkName" placeholder="网站名称" style="flex:1;padding:9px 12px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;outline:none"><input type="text" id="linkUrl" placeholder="https://" style="flex:1;padding:9px 12px;border:1px solid #d0d5dd;border-radius:6px;font-size:13px;outline:none"><button class="btn btn-primary" onclick="addLink()">添加</button></div>
+<div id="linkList"><div class="loading"><div class="spinner"></div>加载中...</div></div></div>
+<script>
+function loadLinks(){fetch('../api/index.php?source=link_list').then(r=>r.json()).then(function(d){var el=document.getElementById('linkList');if(!d.success||!d.data.length){el.innerHTML='<div style="text-align:center;padding:20px;color:#aaa">暂无友链</div>';return}el.innerHTML='<table><thead><tr><th>名称</th><th>网址</th><th>时间</th><th>操作</th></tr></thead><tbody>'+d.data.map(function(x,i){return '<tr><td>'+esc(x.name)+'</td><td><a href="'+esc(x.url)+'" target=_blank>'+esc(x.url)+'</a></td><td>'+x.time+'</td><td><button class="btn btn-sm" onclick="deleteLink('+i+')">删除</button></td></tr>'}).join('')+'</tbody></table>'}).catch(function(){document.getElementById('linkList').innerHTML='<div class=err>加载失败</div>'})}
+function addLink(){var n=document.getElementById('linkName').value.trim();var u=document.getElementById('linkUrl').value.trim();if(!n||!u)return;fetch('../api/index.php?source=link_add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,url:u})}).then(r=>r.json()).then(function(d){if(d.success){document.getElementById('linkName').value='';document.getElementById('linkUrl').value='';loadLinks()}else alert(d.error)}).catch(function(){alert('网络错误')})}
+function deleteLink(i){if(!confirm('确定删除？'))return;fetch('../api/index.php?source=link_delete&id='+i).then(r=>r.json()).then(function(d){if(d.success)loadLinks();else alert(d.error)}).catch(function(){alert('网络错误')})}
+loadLinks();
+</script>

@@ -1,0 +1,7 @@
+{
+    "name": "天气查询",
+    "version": "1.0.0",
+    "description": "实时天气查询，支持拼音城市名",
+    "author": "工具箱",
+    "type": "tool"
+}

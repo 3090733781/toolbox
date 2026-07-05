@@ -1,0 +1,11 @@
+{
+  "name": "示例插件",
+  "version": "1.0.0",
+  "description": "这是一个插件模板，用于开发者快速编写新插件",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🔌",
+  "api": ["demo_query"],
+  "config": true
+}

@@ -1,0 +1,11 @@
+{
+  "name": "开发工具箱",
+  "version": "1.0.0",
+  "description": "JSON格式化、Base64编码、时间戳转换、颜色转换、正则测试、手机号查询、身份证查询、农历日期等",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🧰",
+  "api": ["dev_phone","dev_idcard"],
+  "config": false
+}

@@ -1,0 +1,6 @@
+﻿<?php if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') return; ?>
+<div class="card"><div class="card-title">💬 留言管理</div><div id="msgList"><div class="loading"><div class="spinner"></div>加载中...</div></div></div>
+<script>
+function loadMsgs(){fetch('../api/index.php?source=msg_list').then(r=>r.json()).then(function(d){var el=document.getElementById('msgList');if(!d.success){el.innerHTML='<div class=err>'+esc(d.error)+'</div>';return}if(!d.data.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#aaa">暂无留言</div>';return}el.innerHTML='<table><thead><tr><th>ID</th><th>昵称</th><th>内容</th><th>时间</th><th>操作</th></tr></thead><tbody>'+d.data.map(function(m){return '<tr><td>'+m.id+'</td><td>'+esc(m.name||'匿名')+'</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(m.content)+'</td><td>'+(m.created_at||'')+'</td><td><button class="btn btn-sm" onclick="if(confirm(\'确定删除？\')){fetch(\'../api/index.php?source=msg_delete&id='+m.id+'\').then(r=>r.json()).then(function(d2){if(d2.success)loadMsgs();else alert(d2.error)}).catch(function(){alert(\'网络错误\')})}">删除</button></td></tr>'}).join('')+'</tbody></table>'}).catch(function(){document.getElementById('msgList').innerHTML='<div class=err>加载失败</div>'})}
+loadMsgs();
+</script>

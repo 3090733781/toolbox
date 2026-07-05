@@ -1,0 +1,11 @@
+{
+  "name": "插件市场",
+  "version": "1.0.0",
+  "description": "浏览和安装可用插件",
+  "author": "工具箱",
+  "type": "service",
+  "entry": "index.php",
+  "icon": "🏪",
+  "api": ["market_list"],
+  "config": false
+}

@@ -1,0 +1,7 @@
+{
+    "name": "文件中转站",
+    "version": "1.0.0",
+    "description": "文件上传、下载、外链、API密钥",
+    "author": "工具箱",
+    "type": "service"
+}

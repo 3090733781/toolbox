@@ -1,0 +1,11 @@
+{
+  "name": "密码生成器",
+  "version": "1.0.0",
+  "description": "随机生成高强度密码，支持自定义长度和字符类型",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "🔑",
+  "api": ["pwgen_generate"],
+  "config": false
+}

@@ -1,0 +1,11 @@
+{
+  "name": "GitHub 加速",
+  "version": "1.0.0",
+  "description": "GitHub 代理加速下载，支持仓库克隆、Release 下载、Raw 文件加速",
+  "author": "工具箱",
+  "type": "tool",
+  "entry": "index.php",
+  "icon": "⚡",
+  "api": [],
+  "config": false
+}
