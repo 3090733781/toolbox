@@ -44,7 +44,7 @@ function httpGet($url, $timeout = 8) {
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $url, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_SSL_VERIFYPEER => false, CURLOPT_USERAGENT => 'Mozilla/5.0',
+            CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_USERAGENT => 'Mozilla/5.0',
             CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
         ]);
         $res = curl_exec($ch);
@@ -61,7 +61,7 @@ function httpGetRaw($url, $timeout = 8) {
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $url, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout,
-        CURLOPT_SSL_VERIFYPEER => false, CURLOPT_USERAGENT => 'Mozilla/5.0',
+        CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_USERAGENT => 'Mozilla/5.0',
     ]);
     $res = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -74,7 +74,7 @@ function jsonExit($data) {
     exit;
 }
 
-// ¹«¿ªAPI°×Ãûµ¥£¬Ö»ÓÐÕâÐ©½Ó¿ÚÔÊÐíÄäÃû·ÃÎÊ
+// å…¬å¼€APIç™½åå•ï¼Œåªæœ‰è¿™äº›æŽ¥å£å…è®¸åŒ¿åè®¿é—®
 $publicSources = ['file_config','file_list','myip','ip-api','ip-sb','ipwhois','ipip','ip-baidu','ip-baota','weather_amap','whois','icp','ip9','user_register','user_login','msg_add','msg_list','cat_list','link_list','market_list','plugin_list'];
 $source = $_GET['source'] ?? 'ip-api';
 $query = $_GET['query'] ?? '';
@@ -82,24 +82,24 @@ $cfg = loadConfig();
 $key = $cfg['amap_key'] ?? '';
 $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => null];
 
-// Ð£ÑéAPIÈ¨ÏÞ
-$adminSources = ['user_delete', 'user_list', 'plugin_delete', 'plugin_install', 'cat_add', 'cat_delete', 'cat_mode', 'cat_batch_mode', 'link_add', 'link_delete', 'admin_files'];
+// æ ¡éªŒAPIæƒé™
+$adminSources = ['user_delete', 'user_list', 'plugin_delete', 'plugin_install', 'cat_add', 'cat_delete', 'cat_mode', 'cat_batch_mode', 'link_add', 'link_delete', 'admin_files', 'update_check', 'update_apply'];
 $userSources = ['file_upload', 'file_upload_array', 'file_delete', 'file_download', 'user_logout', 'user_info', 'user_api_key'];
 
 if (in_array($source, $adminSources)) {
-    // ¹ÜÀíÔ±½Ó¿Úadmin permission required
+    // ç®¡ç†å‘˜æŽ¥å£admin permission required
     $u = authUser();
     if (!$u || $u['role'] !== 'admin') {
         jsonExit(array_merge($result, ['error' => 'admin permission required']));
     }
 } elseif (in_array($source, $userSources)) {
-    // ÓÃ»§½Ó¿Úlogin requiredÈ¨ÏÞ
+    // ç”¨æˆ·æŽ¥å£login requiredæƒé™
     $u = authUser();
     if (!$u) {
         jsonExit(array_merge($result, ['error' => 'login required']));
     }
 } elseif (!in_array($source, $publicSources) && empty($cfg['installed'])) {
-    // Î´°²×°Ê±½öÔÊÐí¹«¿ª½Ó¿Ú·ÃÎÊ
+    // æœªå®‰è£…æ—¶ä»…å…è®¸å…¬å¼€æŽ¥å£è®¿é—®
     jsonExit(array_merge($result, ['error' => 'please complete installation first']));
 }
 
@@ -112,6 +112,7 @@ $moduleMap = [
     'file_list' => 'file', 'file_upload' => 'file', 'file_upload_array' => 'file', 'file_delete' => 'file', 'file_download' => 'file', 'file_config' => 'file',
     'user_register' => 'user', 'user_login' => 'user', 'user_logout' => 'user', 'user_info' => 'user', 'user_api_key' => 'user', 'user_list' => 'user', 'user_delete' => 'user',
     'admin_login' => 'admin', 'admin_check' => 'admin', 'admin_logout' => 'admin', 'admin_save' => 'admin', 'admin_files' => 'admin',
+    'update_check' => 'update', 'update_apply' => 'update',
     'msg_add' => 'message', 'msg_list' => 'message', 'msg_delete' => 'message',
     'plugin_list' => 'plugin', 'plugin_delete' => 'plugin', 'plugin_install' => 'plugin',
     'cat_list' => 'category', 'cat_add' => 'category', 'cat_delete' => 'category', 'cat_mode' => 'category', 'cat_batch_mode' => 'category',
@@ -152,6 +153,6 @@ try {
     }
 } catch (Exception $e) {
     error_log("API Error: " . $e->getMessage());
-    $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => '·þÎñÆ÷ÄÚ²¿´íÎó'];
+    $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => 'æœåŠ¡å™¨å†…éƒ¨é”™è¯¯'];
 }
 echo json_encode($result, JSON_UNESCAPED_UNICODE);

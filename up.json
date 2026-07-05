@@ -1,0 +1,10 @@
+{
+  "endpoint": "https://ddd.23zo.cn/api.php?action=latest",
+  "app": "cx_toolbox",
+  "channel": "stable",
+  "public_key": "42VUXudIMxZmssU8D2BhnNOiQQIQv4rzfAgrlvAs7N8=",
+  "max_package_mb": 80,
+  "max_extracted_mb": 250,
+  "keep_local": true,
+  "allow_unsigned": false
+}
