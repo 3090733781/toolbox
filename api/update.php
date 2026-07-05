@@ -10,7 +10,7 @@ function handle_update(&$result, $source, $query, $cfg, $key) {
         return;
     }
 
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = updateJsonDecode(file_get_contents('php://input'));
     if (!is_array($input)) $input = [];
 
     $root = realpath(__DIR__ . '/..');
@@ -103,7 +103,7 @@ function handle_update(&$result, $source, $query, $cfg, $key) {
     $version = null;
     $versionFile = $root . DIRECTORY_SEPARATOR . 'version.json';
     if (is_file($versionFile)) {
-        $version = json_decode(file_get_contents($versionFile), true);
+        $version = updateReadJsonFile($versionFile);
     }
 
     $result['success'] = true;
@@ -122,7 +122,7 @@ function updateOptions($cfg, $root) {
     $update = is_array($cfg['update'] ?? null) ? $cfg['update'] : [];
     $upFile = $root . DIRECTORY_SEPARATOR . 'up.json';
     if (is_file($upFile)) {
-        $up = json_decode(file_get_contents($upFile), true);
+        $up = updateReadJsonFile($upFile);
         if (is_array($up)) {
             $update = is_array($up['update'] ?? null) ? $up['update'] : $up;
         }
@@ -176,14 +176,15 @@ function updateFetchManifest($options, $root) {
 function updateCurrentVersion($root) {
     $versionFile = $root . DIRECTORY_SEPARATOR . 'version.json';
     if (!is_file($versionFile)) return '';
-    $version = json_decode(file_get_contents($versionFile), true);
+    $version = updateReadJsonFile($versionFile);
     return is_array($version) ? trim((string)($version['version'] ?? '')) : '';
 }
 
 function updateCurrentDomain() {
     $host = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? '');
     $host = strtolower(trim((string)$host));
-    return preg_replace('/:\d+$/', '', $host);
+    $host = preg_replace('/:\d+$/', '', $host);
+    return $host;
 }
 
 function updateValidateManifest($manifest, $options) {
@@ -247,7 +248,20 @@ function updateManifestSummary($manifest, $includeUrl) {
 function updateHttpJson($url, $options) {
     $body = updateHttpGet($url, 30, $options, ['Accept: application/json']);
     if ($body === false || $body === '') return null;
-    return json_decode($body, true);
+    return updateJsonDecode($body);
+}
+
+function updateReadJsonFile($file) {
+    $raw = @file_get_contents($file);
+    if ($raw === false) return null;
+    return updateJsonDecode($raw);
+}
+
+function updateJsonDecode($raw) {
+    if (!is_string($raw)) return null;
+    $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
+    $json = json_decode($raw, true);
+    return is_array($json) ? $json : null;
 }
 
 function updateHttpGet($url, $timeout, $options, $headers = []) {
@@ -391,7 +405,7 @@ function updateBuildZipPlan($zipFile, $root, $options, $allowSameVersion, $expec
         }
         if ($rel === 'version.json') {
             $json = $zip->getFromIndex($i);
-            $versionData = json_decode($json ?: '', true);
+            $versionData = updateJsonDecode($json ?: '');
             $newVersion = $versionData['version'] ?? null;
         }
         $files[] = ['entry' => $entry, 'rel' => $rel, 'size' => $size];

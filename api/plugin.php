@@ -7,458 +7,255 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
             return;
 
         case 'plugin_delete':
-            @session_start();
-            if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'ÎŞÈ¨ÏŞ'; return; }
+            if (!pluginRequireAdmin($result)) return;
             $name = basename($_GET['name'] ?? '');
-            if (!$name) { $result['error'] = 'È±ÉÙ²å¼şÃû'; return; }
+            if ($name === '') { $result['error'] = 'ç¼ºå°‘æ’ä»¶åç§°'; return; }
             $pluginDir = __DIR__ . '/../plugins/' . $name;
-            if (!is_dir($pluginDir)) { $result['error'] = '²å¼ş²»´æÔÚ'; return; }
-            if (!deleteDir($pluginDir)) { $result['error'] = 'É¾³ıÊ§°Ü'; return; }
+            if (!is_dir($pluginDir)) { $result['error'] = 'æ’ä»¶ä¸å­˜åœ¨'; return; }
+            if (!deleteDir($pluginDir)) { $result['error'] = 'åˆ é™¤å¤±è´¥'; return; }
             $result['success'] = true;
             $result['data'] = ['deleted' => $name];
             return;
 
         case 'plugin_install':
-            @session_start();
-            if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'ÎŞÈ¨ÏŞ'; return; }
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_FILES['file'])) { $result['error'] = 'ÇëÉÏ´«²å¼ş°ü'; return; }
-            $f = $_FILES['file'];
-            if ($f['error'] !== UPLOAD_ERR_OK) {
-                $errMsgs = [
-                    UPLOAD_ERR_INI_SIZE => 'ÎÄ¼ş³¬¹ı·şÎñÆ÷ÉÏ´«ÏŞÖÆ',
-                    UPLOAD_ERR_FORM_SIZE => 'ÎÄ¼ş³¬¹ı±íµ¥ÏŞÖÆ',
-                    UPLOAD_ERR_PARTIAL => 'ÎÄ¼şÉÏ´«²»ÍêÕû',
-                    UPLOAD_ERR_NO_FILE => 'Î´Ñ¡ÔñÎÄ¼ş',
-                    UPLOAD_ERR_NO_TMP_DIR => '·şÎñÆ÷ÁÙÊ±Ä¿Â¼È±Ê§',
-                    UPLOAD_ERR_CANT_WRITE => 'ÎŞ·¨Ğ´Èë´ÅÅÌ',
-                ];
-                $result['error'] = $errMsgs[$f['error']] ?? 'ÉÏ´«Ê§°Ü (´íÎóÂë ' . $f['error'] . ')';
-                return;
-            }
-            $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
-            if ($ext !== 'zip') { $result['error'] = '½öÖ§³Ö ZIP ¸ñÊ½'; return; }
-            $pluginName = pathinfo($f['name'], PATHINFO_FILENAME);
-            $pluginsDir = __DIR__ . '/../plugins/';
-            $tmpFile = $f['tmp_name'];
-            $extracted = false;
-            $extractDir = '';
-
-            // ·½·¨1: ZipArchive£¨ÍÆ¼ö£©
-            if (class_exists('ZipArchive')) {
-                $zip = new ZipArchive();
-                if ($zip->open($tmpFile) === TRUE) {
-                    // É¨Ãè ZIP ÄÚËùÓĞÎÄ¼ş£¬ÕÒµ½ plugin.json µÄÎ»ÖÃ
-                    $foundDir = null;
-                    $rootPluginJson = false;
-                    for ($i = 0; $i < $zip->numFiles; $i++) {
-                        $entry = $zip->getNameIndex($i);
-                        // ·ÀÖ¹Zip SlipÂ·¾¶±éÀú
-                        if (strpos($entry, '..') !== false || strpos($entry, '/../') !== false || strpos($entry, '\\..\\') !== false) {
-                            continue;
-                        }
-                        if (preg_match('#^([^/]+)/plugin\.json$#', $entry, $m)) {
-                            $foundDir = $m[1];
-                            break;
-                        }
-                        if ($entry === 'plugin.json') {
-                            $rootPluginJson = true;
-                        }
-                    }
-                    if ($foundDir !== null) {
-                        $exDir = $pluginsDir . $foundDir;
-                        if (!is_dir($exDir)) {
-                            // ½âÑ¹Ç°Ğ£ÑéËùÓĞÎÄ¼şÂ·¾¶£¬·ÀÖ¹Â·¾¶±éÀú
-                            $valid = true;
-                            for ($i = 0; $i < $zip->numFiles; $i++) {
-                                $entry = $zip->getNameIndex($i);
-                                if (strpos($entry, '..') !== false || !str_starts_with($entry, $foundDir . '/')) {
-                                    $valid = false;
-                                    break;
-                                }
-                            }
-                            if (!$valid) {
-                                $result['error'] = '²å¼ş°ü°üº¬·Ç·¨Â·¾¶£¬¿ÉÄÜ´æÔÚ°²È«·çÏÕ';
-                                $zip->close();
-                                return;
-                            }
-                            
-                            @$zip->extractTo($pluginsDir);
-                            if (file_exists($exDir . '/plugin.json')) {
-                                $extracted = true;
-                                $pluginName = $foundDir;
-                                $extractDir = $exDir;
-                            }
-                        } else {
-                            $result['error'] = '²å¼ş¡¸' . $foundDir . '¡¹ÒÑ´æÔÚ';
-                            $zip->close();
-                            return;
-                        }
-                    } elseif ($rootPluginJson) {
-                        $exDir = $pluginsDir . $pluginName;
-                        if (!is_dir($exDir)) {
-                            @mkdir($exDir, 0755, true);
-                            // ½âÑ¹Ç°Ğ£ÑéËùÓĞÎÄ¼şÂ·¾¶
-                            $valid = true;
-                            for ($i = 0; $i < $zip->numFiles; $i++) {
-                                $entry = $zip->getNameIndex($i);
-                                if (strpos($entry, '..') !== false) {
-                                    $valid = false;
-                                    break;
-                                }
-                            }
-                            if (!$valid) {
-                                $result['error'] = '²å¼ş°ü°üº¬·Ç·¨Â·¾¶£¬¿ÉÄÜ´æÔÚ°²È«·çÏÕ';
-                                $zip->close();
-                                return;
-                            }
-                            
-                            @$zip->extractTo($exDir);
-                            if (file_exists($exDir . '/plugin.json')) {
-                                $extracted = true;
-                                $extractDir = $exDir;
-                                $manifest = json_decode(file_get_contents($exDir . '/plugin.json'), true);
-                                if (!empty($manifest['name'])) $pluginName = $manifest['name'];
-                            } else {
-                                deleteDir($exDir);
-                            }
-                        } else {
-                            $result['error'] = '²å¼ş¡¸' . $pluginName . '¡¹ÒÑ´æÔÚ';
-                            $zip->close();
-                            return;
-                        }
-                    }
-                    $zip->close();
-                }
-            }
-
-            // ·½·¨2: ÏµÍ³ unzip ÃüÁî
-            if (!$extracted && function_exists('exec')) {
-                // ÏÈ¼ì²é ZIP ½á¹¹£¬È·¶¨ÊÇ·ñº¬×ÓÄ¿Â¼
-                @exec("unzip -l " . escapeshellarg($tmpFile) . " 2>&1", $listOut, $listCode);
-                $hasSubdir = false;
-                $foundDir = null;
-                foreach ($listOut as $line) {
-                    if (preg_match('#^\s*[\d]+\s+[\d-]+\s+[\d:]+\s+([^/]+)/plugin\.json\s*$#', $line, $m)) {
-                        $hasSubdir = true;
-                        $foundDir = $m[1];
-                        break;
-                    }
-                    if (preg_match('#^\s*[\d]+\s+[\d-]+\s+[\d:]+\s+plugin\.json\s*$#', $line)) {
-                        $rootPluginJson = true;
-                    }
-                    // ¼ì²éÂ·¾¶±éÀú
-                    if (strpos($line, '..') !== false) {
-                        $result['error'] = '²å¼ş°ü°üº¬·Ç·¨Â·¾¶£¬¿ÉÄÜ´æÔÚ°²È«·çÏÕ';
-                        return;
-                    }
-                }
-                if ($hasSubdir) {
-                    @exec("unzip -o " . escapeshellarg($tmpFile) . " -d " . escapeshellarg($pluginsDir) . " 2>&1", $out, $code);
-                    foreach (scandir($pluginsDir) as $item) {
-                        if ($item === '.' || $item === '..' || !is_dir($pluginsDir . $item)) continue;
-                        if (file_exists($pluginsDir . $item . '/plugin.json')) {
-                            $pluginName = $item;
-                            $extractDir = $pluginsDir . $item;
-                            $extracted = true;
-                            break;
-                        }
-                    }
-                } elseif ($rootPluginJson) {
-                    // ÎŞ×ÓÄ¿Â¼£¬ÏÈ´´½¨²å¼şÄ¿Â¼ÔÙ½âÑ¹
-                    $exDir = $pluginsDir . $pluginName;
-                    if (!is_dir($exDir)) @mkdir($exDir, 0755, true);
-                    @exec("unzip -o " . escapeshellarg($tmpFile) . " -d " . escapeshellarg($exDir) . " 2>&1", $out, $code);
-                    if (file_exists($exDir . '/plugin.json')) {
-                        $extracted = true;
-                        $extractDir = $exDir;
-                        $manifest = json_decode(file_get_contents($exDir . '/plugin.json'), true);
-                        if (!empty($manifest['name'])) $pluginName = $manifest['name'];
-                    } else {
-                        deleteDir($exDir);
-                    }
-                }
-            }
-
-            // ·½·¨3: zip_open (PHP 7.x)
-            if (!$extracted && PHP_VERSION_ID < 80000 && function_exists('zip_open')) {
-                $z = @zip_open($tmpFile);
-                if (is_resource($z)) {
-                    // ÏÈÉ¨ÃèÕÒµ½ plugin.json ËùÔÚµÄ¸ùÄ¿Â¼
-                    $foundDir = null;
-                    $rootPluginJson = false;
-                    while ($entry = @zip_read($z)) {
-                        $name = @zip_entry_name($entry);
-                        // ·ÀÖ¹Â·¾¶±éÀú
-                        if (strpos($name, '..') !== false) {
-                            continue;
-                        }
-                        if (preg_match('#^([^/]+)/plugin\.json$#', $name, $m)) { $foundDir = $m[1]; break; }
-                        if ($name === 'plugin.json') { $rootPluginJson = true; }
-                    }
-                    @zip_close($z);
-
-                    if ($foundDir) {
-                        $exDir = $pluginsDir . $foundDir;
-                        if (!is_dir($exDir)) {
-                            $z = @zip_open($tmpFile);
-                            if (is_resource($z)) {
-                                if (!is_dir($exDir)) @mkdir($exDir, 0755, true);
-                                while ($entry = @zip_read($z)) {
-                                    $name = @zip_entry_name($entry);
-                                    // ·ÀÖ¹Zip SlipÂ·¾¶±éÀúÂ©¶´
-                                    if (strpos($name, '..') !== false) {
-                                        continue;
-                                    }
-                                    // Ö»ÌáÈ¡ foundDir ÏÂµÄÎÄ¼ş
-                                    if (strpos($name, $foundDir . '/') !== 0 && $name !== $foundDir . '/') continue;
-                                    $relPath = substr($name, strlen($foundDir) + 1);
-                                    if ($relPath === '' || $relPath === false) continue;
-                                    $fullPath = $exDir . '/' . $relPath;
-                                    if (substr($name, -1) === '/') { @mkdir($fullPath, 0755, true); continue; }
-                                    $dir = dirname($fullPath);
-                                    if (!is_dir($dir)) @mkdir($dir, 0755, true);
-                                    if (@zip_entry_open($z, $entry)) {
-                                        $content = @zip_entry_read($entry, @zip_entry_filesize($entry));
-                                        if ($content !== false) @file_put_contents($fullPath, $content);
-                                        @zip_entry_close($entry);
-                                    }
-                                }
-                                @zip_close($z);
-                                if (file_exists($exDir . '/plugin.json')) {
-                                    $extracted = true;
-                                    $pluginName = $foundDir;
-                                    $extractDir = $exDir;
-                                } else { deleteDir($exDir); }
-                            }
-                        } else {
-                            $result['error'] = '²å¼ş¡¸' . $foundDir . '¡¹ÒÑ´æÔÚ';
-                            return;
-                        }
-                    } elseif ($rootPluginJson) {
-                        $exDir = $pluginsDir . $pluginName;
-                        if (!is_dir($exDir)) {
-                            $z = @zip_open($tmpFile);
-                            if (is_resource($z)) {
-                                if (!is_dir($exDir)) @mkdir($exDir, 0755, true);
-                                while ($entry = @zip_read($z)) {
-                                    $name = @zip_entry_name($entry);
-                                    // ·ÀÖ¹Â·¾¶±éÀú
-                                    if (strpos($name, '..') !== false) {
-                                        continue;
-                                    }
-                                    if (substr($name, -1) === '/') { @mkdir($exDir . '/' . $name, 0755, true); continue; }
-                                    $fullPath = $exDir . '/' . $name;
-                                    $dir = dirname($fullPath);
-                                    if (!is_dir($dir)) @mkdir($dir, 0755, true);
-                                    if (@zip_entry_open($z, $entry)) {
-                                        $content = @zip_entry_read($entry, @zip_entry_filesize($entry));
-                                        if ($content !== false) @file_put_contents($fullPath, $content);
-                                        @zip_entry_close($entry);
-                                    }
-                                }
-                                @zip_close($z);
-                                if (file_exists($exDir . '/plugin.json')) {
-                                    $extracted = true;
-                                    $extractDir = $exDir;
-                                    $manifest = json_decode(file_get_contents($exDir . '/plugin.json'), true);
-                                    if (!empty($manifest['name'])) $pluginName = $manifest['name'];
-                                } else {
-                                    deleteDir($exDir);
-                                }
-                            }
-                        } else {
-                            $result['error'] = '²å¼ş¡¸' . $pluginName . '¡¹ÒÑ´æÔÚ';
-                            return;
-                        }
-                    }
-                } elseif (is_int($z)) {
-                    // zip_open ·µ»Ø´íÎóÂë
-                }
-            }
-
-            // ·½·¨4: ÊÖ¶¯½âÎöZIP£¨´¿ PHP »ØÍË£¬ÎŞĞèÀ©Õ¹£©
-            if (!$extracted) {
-                $fp = fopen($tmpFile, 'rb');
-                if ($fp) {
-                    // ÏÈÓÃ End of Central Directory ÕÒµ½ÎÄ¼şÁĞ±í
-                    fseek($fp, -22, SEEK_END);
-                    $eocd = fread($fp, 22);
-                    if (strlen($eocd) === 22) {
-                        $eocdSig = unpack('V', substr($eocd, 0, 4))[1];
-                        if ($eocdSig === 0x06054b50) {
-                            $totalEntries = unpack('v', substr($eocd, 8, 2))[1];
-                            $cdSize = unpack('V', substr($eocd, 12, 4))[1];
-                            $cdOffset = unpack('V', substr($eocd, 16, 4))[1];
-
-                            // ÏÈÉ¨ÃèÕÒµ½ plugin.json µÄ¸ùÄ¿Â¼
-                            $foundDir = null;
-                            $rootPluginJson = false;
-                            fseek($fp, $cdOffset);
-                            for ($i = 0; $i < $totalEntries; $i++) {
-                                $sig = unpack('V', fread($fp, 4))[1];
-                                if ($sig !== 0x02014b50) break;
-                                fseek($fp, 24, SEEK_CUR);
-                                $nameLen = unpack('v', fread($fp, 2))[1];
-                                $extraLen = unpack('v', fread($fp, 2))[1];
-                                $commentLen = unpack('v', fread($fp, 2))[1];
-                                fseek($fp, 8, SEEK_CUR);
-                                $filename = fread($fp, $nameLen);
-                                fseek($fp, $extraLen + $commentLen, SEEK_CUR);
-                                // ·ÀÖ¹Â·¾¶±éÀú
-                                if (strpos($filename, '..') !== false) {
-                                    continue;
-                                }
-                                if (preg_match('#^([^/]+)/plugin\.json$#', $filename, $m)) {
-                                    $foundDir = $m[1];
-                                    break;
-                                }
-                                if ($filename === 'plugin.json') {
-                                    $rootPluginJson = true;
-                                }
-                            }
-
-                            if ($foundDir) {
-                                $exDir = $pluginsDir . $foundDir;
-                                if (is_dir($exDir)) {
-                                    fclose($fp);
-                                    $result['error'] = '²å¼ş¡¸' . $foundDir . '¡¹ÒÑ´æÔÚ';
-                                    return;
-                                }
-                                if (!is_dir($exDir)) @mkdir($exDir, 0755, true);
-
-                                // ÖØĞÂÉ¨Ãè²¢ÌáÈ¡ÎÄ¼ş
-                                fseek($fp, $cdOffset);
-                                for ($i = 0; $i < $totalEntries; $i++) {
-                                    $sig = unpack('V', fread($fp, 4))[1];
-                                    if ($sig !== 0x02014b50) break;
-                                    fseek($fp, 16, SEEK_CUR);
-                                    $compressedSize = unpack('V', fread($fp, 4))[1];
-                                    $uncompressedSize = unpack('V', fread($fp, 4))[1];
-                                    $nameLen = unpack('v', fread($fp, 2))[1];
-                                    $extraLen = unpack('v', fread($fp, 2))[1];
-                                    $commentLen = unpack('v', fread($fp, 2))[1];
-                                    fseek($fp, 8, SEEK_CUR);
-                                    $localOffset = unpack('V', fread($fp, 4))[1];
-                                    $filename = fread($fp, $nameLen);
-                                    fseek($fp, $extraLen + $commentLen, SEEK_CUR);
-
-                                    // ·ÀÖ¹Â·¾¶±éÀú
-                                    if (strpos($filename, '..') !== false) {
-                                        continue;
-                                    }
-
-                                    if (strpos($filename, $foundDir . '/') !== 0 && $filename !== $foundDir . '/') continue;
-                                    $relPath = substr($filename, strlen($foundDir) + 1);
-                                    if ($relPath === '' || $relPath === false) continue;
-                                    if (substr($filename, -1) === '/') {
-                                        @mkdir($exDir . '/' . $relPath, 0755, true);
-                                        continue;
-                                    }
-
-                                    $curPos = ftell($fp);
-                                    fseek($fp, $localOffset);
-                                    $localSig = unpack('V', fread($fp, 4))[1];
-                                    if ($localSig !== 0x04034b50) { fseek($fp, $curPos); continue; }
-                                    fseek($fp, 22, SEEK_CUR);
-                                    $lnameLen = unpack('v', fread($fp, 2))[1];
-                                    $lextraLen = unpack('v', fread($fp, 2))[1];
-                                    fseek($fp, $lnameLen + $lextraLen, SEEK_CUR);
-
-                                    $data = fread($fp, $compressedSize);
-                                    if ($compressedSize < $uncompressedSize && function_exists('gzinflate')) {
-                                        $dec = @gzinflate($data);
-                                        if ($dec !== false) $data = $dec;
-                                    }
-                                    $dir = dirname($exDir . '/' . $relPath);
-                                    if (!is_dir($dir)) @mkdir($dir, 0755, true);
-                                    @file_put_contents($exDir . '/' . $relPath, $data);
-                                    fseek($fp, $curPos);
-                                }
-                                if (file_exists($exDir . '/plugin.json')) {
-                                    $extracted = true;
-                                    $pluginName = $foundDir;
-                                    $extractDir = $exDir;
-                                } else {
-                                    deleteDir($exDir);
-                                }
-                            } elseif ($rootPluginJson) {
-                                $exDir = $pluginsDir . $pluginName;
-                                if (is_dir($exDir)) {
-                                    fclose($fp);
-                                    $result['error'] = '²å¼ş¡¸' . $pluginName . '¡¹ÒÑ´æÔÚ';
-                                    return;
-                                }
-                                if (!is_dir($exDir)) @mkdir($exDir, 0755, true);
-
-                                fseek($fp, $cdOffset);
-                                for ($i = 0; $i < $totalEntries; $i++) {
-                                    $sig = unpack('V', fread($fp, 4))[1];
-                                    if ($sig !== 0x02014b50) break;
-                                    fseek($fp, 16, SEEK_CUR);
-                                    $compressedSize = unpack('V', fread($fp, 4))[1];
-                                    $uncompressedSize = unpack('V', fread($fp, 4))[1];
-                                    $nameLen = unpack('v', fread($fp, 2))[1];
-                                    $extraLen = unpack('v', fread($fp, 2))[1];
-                                    $commentLen = unpack('v', fread($fp, 2))[1];
-                                    fseek($fp, 8, SEEK_CUR);
-                                    $localOffset = unpack('V', fread($fp, 4))[1];
-                                    $filename = fread($fp, $nameLen);
-                                    fseek($fp, $extraLen + $commentLen, SEEK_CUR);
-
-                                    // ·ÀÖ¹Â·¾¶±éÀú
-                                    if (strpos($filename, '..') !== false) {
-                                        continue;
-                                    }
-
-                                    if (substr($filename, -1) === '/') {
-                                        @mkdir($exDir . '/' . $filename, 0755, true);
-                                        continue;
-                                    }
-
-                                    $curPos = ftell($fp);
-                                    fseek($fp, $localOffset);
-                                    $localSig = unpack('V', fread($fp, 4))[1];
-                                    if ($localSig !== 0x04034b50) { fseek($fp, $curPos); continue; }
-                                    fseek($fp, 22, SEEK_CUR);
-                                    $lnameLen = unpack('v', fread($fp, 2))[1];
-                                    $lextraLen = unpack('v', fread($fp, 2))[1];
-                                    fseek($fp, $lnameLen + $lextraLen, SEEK_CUR);
-
-                                    $data = fread($fp, $compressedSize);
-                                    if ($compressedSize < $uncompressedSize && function_exists('gzinflate')) {
-                                        $dec = @gzinflate($data);
-                                        if ($dec !== false) $data = $dec;
-                                    }
-                                    $dir = dirname($exDir . '/' . $filename);
-                                    if (!is_dir($dir)) @mkdir($dir, 0755, true);
-                                    @file_put_contents($exDir . '/' . $filename, $data);
-                                    fseek($fp, $curPos);
-                                }
-                                if (file_exists($exDir . '/plugin.json')) {
-                                    $extracted = true;
-                                    $extractDir = $exDir;
-                                    $manifest = json_decode(file_get_contents($exDir . '/plugin.json'), true);
-                                    if (!empty($manifest['name'])) $pluginName = $manifest['name'];
-                                } else {
-                                    deleteDir($exDir);
-                                }
-                            }
-                        }
-                    }
-                    fclose($fp);
-                }
-            }
-
-            if (!$extracted) {
-                $result['error'] = '½âÑ¹Ê§°Ü£ºÇëÈ·±£ ZIP °ü¸ùÄ¿Â¼°üº¬ plugin.json£¬»òÍ¨¹ı FTP ½«²å¼şÉÏ´«µ½ plugins/ Ä¿Â¼';
-                return;
-            }
-            if (!file_exists($extractDir . '/plugin.json')) { deleteDir($extractDir); $result['error'] = 'È±ÉÙ plugin.json'; return; }
-            $manifest = json_decode(file_get_contents($extractDir . '/plugin.json'), true);
+            if (!pluginRequireAdmin($result)) return;
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_FILES['file'])) { $result['error'] = 'è¯·ä¸Šä¼ æ’ä»¶ ZIP åŒ…'; return; }
+            $installed = pluginInstallUploaded($_FILES['file']);
+            if (!$installed['success']) { $result['error'] = $installed['error']; return; }
             $result['success'] = true;
-            $result['data'] = ['name' => $pluginName, 'manifest' => $manifest];
+            $result['data'] = $installed['data'];
+            return;
+
+        case 'plugin_center_list':
+            if (!pluginRequireAdmin($result)) return;
+            $listed = pluginCenterFetchList($cfg);
+            if (!$listed['success']) { $result['error'] = $listed['error']; return; }
+            $installed = pluginInstalledNames();
+            foreach ($listed['data'] as &$plugin) {
+                $plugin['installed'] = in_array($plugin['plugin_id'] ?? '', $installed, true);
+            }
+            unset($plugin);
+            $result['success'] = true;
+            $result['data'] = $listed['data'];
+            return;
+
+        case 'plugin_center_install':
+            if (!pluginRequireAdmin($result)) return;
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = 'å¿…é¡»ä½¿ç”¨ POST è¯·æ±‚'; return; }
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($input)) $input = [];
+            $pluginId = trim($input['id'] ?? '');
+            if ($pluginId === '') { $result['error'] = 'ç¼ºå°‘æ’ä»¶ç¼–å·'; return; }
+            $installed = pluginCenterInstall($cfg, $pluginId);
+            if (!$installed['success']) { $result['error'] = $installed['error']; return; }
+            $result['success'] = true;
+            $result['data'] = $installed['data'];
             return;
     }
+}
+
+function pluginRequireAdmin(&$result) {
+    @session_start();
+    if (empty($_SESSION['admin']) || ($_SESSION['role'] ?? '') !== 'admin') {
+        $result['error'] = 'æ²¡æœ‰ç®¡ç†å‘˜æƒé™';
+        return false;
+    }
+    return true;
+}
+
+function pluginInstallUploaded($file) {
+    if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+        return ['success' => false, 'error' => pluginUploadError($file['error'] ?? -1)];
+    }
+    if (strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION)) !== 'zip') {
+        return ['success' => false, 'error' => 'åªæ”¯æŒ ZIP æ’ä»¶åŒ…'];
+    }
+    if (($file['size'] ?? 0) <= 0 || ($file['size'] ?? 0) > 50 * 1024 * 1024) {
+        return ['success' => false, 'error' => 'æ’ä»¶åŒ…å¤§å°ä¸æ­£ç¡®æˆ–è¶…è¿‡ 50MB'];
+    }
+    if (pluginFileHeader($file['tmp_name'], 4) !== "PK\x03\x04") {
+        return ['success' => false, 'error' => 'æ’ä»¶åŒ…å¿…é¡»æ˜¯ ZIP æ–‡ä»¶'];
+    }
+    $fallback = pathinfo($file['name'] ?? 'plugin', PATHINFO_FILENAME);
+    return pluginInstallZip($file['tmp_name'], $fallback);
+}
+
+function pluginCenterFetchList($cfg) {
+    $options = pluginCenterOptions($cfg);
+    if (!$options['endpoint']) return ['success' => false, 'error' => 'æœªé…ç½®æ’ä»¶ä¸­å¿ƒåœ°å€'];
+    $url = $options['endpoint'] . (strpos($options['endpoint'], '?') === false ? '?' : '&') . http_build_query(['domain' => pluginCurrentDomain()]);
+    $json = pluginHttpJson($url, $options);
+    if (!$json || !is_array($json)) return ['success' => false, 'error' => 'æ— æ³•è¯»å–æ’ä»¶ä¸­å¿ƒ'];
+    if (isset($json['success']) && !$json['success']) return ['success' => false, 'error' => $json['error'] ?? 'æ’ä»¶ä¸­å¿ƒæ‹’ç»è®¿é—®'];
+    $items = isset($json['data']) && is_array($json['data']) ? $json['data'] : $json;
+    if (!is_array($items)) return ['success' => false, 'error' => 'æ’ä»¶ä¸­å¿ƒè¿”å›æ ¼å¼ä¸æ­£ç¡®'];
+    $out = [];
+    foreach ($items as $item) {
+        if (!is_array($item)) continue;
+        $valid = pluginValidateRemoteManifest($item, $options);
+        if (!$valid['success']) return $valid;
+        $out[] = $item;
+    }
+    return ['success' => true, 'data' => $out];
+}
+
+function pluginCenterInstall($cfg, $id) {
+    $listed = pluginCenterFetchList($cfg);
+    if (!$listed['success']) return $listed;
+    $target = null;
+    foreach ($listed['data'] as $plugin) {
+        if (($plugin['id'] ?? '') === $id || ($plugin['plugin_id'] ?? '') === $id) { $target = $plugin; break; }
+    }
+    if (!$target) return ['success' => false, 'error' => 'æ’ä»¶ä¸­å¿ƒæ²¡æœ‰è¿™ä¸ªæ’ä»¶'];
+    $pid = $target['plugin_id'] ?? '';
+    if ($pid !== '' && in_array($pid, pluginInstalledNames(), true)) {
+        return ['success' => false, 'error' => 'æ’ä»¶å·²å®‰è£…ï¼Œå¦‚éœ€å‡çº§è¯·å…ˆå¸è½½æ—§ç‰ˆæœ¬'];
+    }
+    $options = pluginCenterOptions($cfg);
+    $tmpDir = __DIR__ . '/../release_updates/plugin_center';
+    if (!is_dir($tmpDir) && !@mkdir($tmpDir, 0755, true)) return ['success' => false, 'error' => 'æ— æ³•åˆ›å»ºä¸´æ—¶ç›®å½•'];
+    $fileName = pluginSafeName($target['package_name'] ?? (($pid ?: 'plugin') . '.zip'));
+    $tmpFile = $tmpDir . '/' . date('Ymd_His') . '_' . $fileName;
+    $download = pluginDownloadFile($target['package_url'], $tmpFile, $options);
+    if (!$download['success']) { @unlink($tmpFile); return $download; }
+    $sha = strtolower(hash_file('sha256', $tmpFile));
+    if (!hash_equals(strtolower($target['sha256'] ?? ''), $sha)) {
+        @unlink($tmpFile);
+        return ['success' => false, 'error' => 'æ’ä»¶åŒ… SHA256 æ ¡éªŒå¤±è´¥'];
+    }
+    $installed = pluginInstallZip($tmpFile, $pid ?: pathinfo($fileName, PATHINFO_FILENAME));
+    if (!$installed['success']) return $installed;
+    $installed['data']['remote'] = [
+        'plugin_id' => $target['plugin_id'] ?? '',
+        'version' => $target['version'] ?? '',
+        'sha256' => $sha,
+        'saved_as' => str_replace('\\', '/', substr($tmpFile, strlen(realpath(__DIR__ . '/..')) + 1)),
+    ];
+    return $installed;
+}
+
+function pluginCenterOptions($cfg) {
+    $center = is_array($cfg['plugin_center'] ?? null) ? $cfg['plugin_center'] : [];
+    $update = is_array($cfg['update'] ?? null) ? $cfg['update'] : [];
+    $upFile = __DIR__ . '/../up.json';
+    if (is_file($upFile)) {
+        $up = json_decode(file_get_contents($upFile), true);
+        if (is_array($up)) {
+            if (empty($center)) $center = is_array($up['plugin_center'] ?? null) ? $up['plugin_center'] : [];
+            if (empty($update)) $update = is_array($up['update'] ?? null) ? $up['update'] : $up;
+        }
+    }
+    if (empty($center['endpoint']) && !empty($update['endpoint'])) {
+        $center['endpoint'] = preg_replace('/([?&]action=)latest\b/', '$1plugins', $update['endpoint']);
+    }
+    $endpoint = pluginNormalizeHttpsUrl(trim($center['endpoint'] ?? ''));
+    $publicKey = trim($center['public_key'] ?? ($update['public_key'] ?? ''));
+    return [
+        'endpoint' => $endpoint,
+        'endpoint_host' => strtolower(parse_url($endpoint, PHP_URL_HOST) ?: ''),
+        'public_key' => $publicKey,
+        'allow_unsigned' => !empty($center['allow_unsigned']),
+        'max_package_bytes' => max(1024 * 1024, intval($center['max_package_mb'] ?? 30) * 1024 * 1024),
+    ];
+}
+
+function pluginValidateRemoteManifest($manifest, $options) {
+    foreach (['id', 'plugin_id', 'version', 'package_url', 'sha256'] as $field) {
+        if (empty($manifest[$field]) || !is_string($manifest[$field])) return ['success' => false, 'error' => 'æ’ä»¶ä¸­å¿ƒç¼ºå°‘å­—æ®µï¼š' . $field];
+    }
+    if (!preg_match('/^[A-Za-z0-9_.-]{2,80}$/', $manifest['plugin_id'])) return ['success' => false, 'error' => 'æ’ä»¶æ ‡è¯†æ ¼å¼ä¸æ­£ç¡®'];
+    if (!preg_match('/^[a-f0-9]{64}$/i', $manifest['sha256'])) return ['success' => false, 'error' => 'æ’ä»¶ SHA256 æ ¼å¼ä¸æ­£ç¡®'];
+    if (!pluginTrustedUrl($manifest['package_url'], $options)) return ['success' => false, 'error' => 'æ’ä»¶åŒ…åœ°å€ä¸å¯ä¿¡'];
+    if ($options['public_key'] === '' && !$options['allow_unsigned']) return ['success' => false, 'error' => 'æœªé…ç½®æ’ä»¶ä¸­å¿ƒå…¬é’¥'];
+    if ($options['public_key'] !== '') {
+        if (empty($manifest['signature'])) return ['success' => false, 'error' => 'æ’ä»¶ç¼ºå°‘ç­¾å'];
+        if (!function_exists('sodium_crypto_sign_verify_detached')) return ['success' => false, 'error' => 'æœåŠ¡å™¨æœªå¼€å¯ sodium æ‰©å±•'];
+        $sig = base64_decode($manifest['signature'], true);
+        $pub = base64_decode($options['public_key'], true);
+        $msg = implode('|', ['plugin', $manifest['plugin_id'], $manifest['version'], strtolower($manifest['sha256'])]);
+        if (!$sig || !$pub || !sodium_crypto_sign_verify_detached($sig, $msg, $pub)) return ['success' => false, 'error' => 'æ’ä»¶ç­¾åæ ¡éªŒå¤±è´¥'];
+    }
+    return ['success' => true];
+}
+
+function pluginInstallZip($zipFile, $fallbackName) {
+    if (!class_exists('ZipArchive')) return ['success' => false, 'error' => 'æœåŠ¡å™¨æœªå¼€å¯ ZipArchive æ‰©å±•'];
+    $pluginsDir = realpath(__DIR__ . '/../plugins');
+    if (!$pluginsDir) {
+        $base = __DIR__ . '/../plugins';
+        if (!@mkdir($base, 0755, true)) return ['success' => false, 'error' => 'æ— æ³•åˆ›å»º plugins ç›®å½•'];
+        $pluginsDir = realpath($base);
+    }
+    $zip = new ZipArchive();
+    if ($zip->open($zipFile) !== true) return ['success' => false, 'error' => 'æ— æ³•æ‰“å¼€æ’ä»¶åŒ…'];
+    $scan = pluginScanZip($zip, $fallbackName);
+    if (!$scan['success']) { $zip->close(); return $scan; }
+    $pluginName = $scan['plugin_name'];
+    $targetDir = $pluginsDir . DIRECTORY_SEPARATOR . $pluginName;
+    if (is_dir($targetDir)) { $zip->close(); return ['success' => false, 'error' => 'æ’ä»¶ ' . $pluginName . ' å·²å­˜åœ¨']; }
+    if (!@mkdir($targetDir, 0755, true)) { $zip->close(); return ['success' => false, 'error' => 'æ— æ³•åˆ›å»ºæ’ä»¶ç›®å½•']; }
+    foreach ($scan['files'] as $file) {
+        $target = $targetDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file['rel']);
+        if (!pluginPathInside($target, $targetDir)) { $zip->close(); deleteDir($targetDir); return ['success' => false, 'error' => 'æ’ä»¶åŒ…è·¯å¾„ä¸å®‰å…¨']; }
+        $dir = dirname($target);
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) { $zip->close(); deleteDir($targetDir); return ['success' => false, 'error' => 'æ— æ³•åˆ›å»ºæ’ä»¶å­ç›®å½•']; }
+        $in = $zip->getStream($file['entry']);
+        $out = @fopen($target, 'wb');
+        if (!$in || !$out) {
+            if ($in) fclose($in);
+            if ($out) fclose($out);
+            $zip->close();
+            deleteDir($targetDir);
+            return ['success' => false, 'error' => 'å†™å…¥æ’ä»¶æ–‡ä»¶å¤±è´¥'];
+        }
+        stream_copy_to_stream($in, $out);
+        fclose($in);
+        fclose($out);
+    }
+    $zip->close();
+    $manifestFile = $targetDir . DIRECTORY_SEPARATOR . 'plugin.json';
+    if (!is_file($manifestFile)) { deleteDir($targetDir); return ['success' => false, 'error' => 'æ’ä»¶åŒ…ç¼ºå°‘ plugin.json']; }
+    $manifest = json_decode(file_get_contents($manifestFile), true);
+    if (!is_array($manifest)) { deleteDir($targetDir); return ['success' => false, 'error' => 'plugin.json æ ¼å¼ä¸æ­£ç¡®']; }
+    return ['success' => true, 'data' => ['name' => $pluginName, 'manifest' => $manifest]];
+}
+
+function pluginScanZip($zip, $fallbackName) {
+    $manifestEntry = null;
+    $rootDir = null;
+    $total = 0;
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $stat = $zip->statIndex($i);
+        $entry = str_replace('\\', '/', $stat['name'] ?? '');
+        if (!pluginSafeRelativePath($entry) || pluginZipEntryIsSymlink($zip, $i)) return ['success' => false, 'error' => 'æ’ä»¶åŒ…åŒ…å«ä¸å®‰å…¨è·¯å¾„æˆ–è½¯é“¾æ¥'];
+        $total += intval($stat['size'] ?? 0);
+        if ($total > 50 * 1024 * 1024) return ['success' => false, 'error' => 'æ’ä»¶è§£å‹åè¶…è¿‡ 50MB'];
+        if ($entry === 'plugin.json') $manifestEntry = $entry;
+        elseif (preg_match('#^([A-Za-z0-9_.-]+)/plugin\.json$#', $entry, $m)) { $rootDir = $m[1]; $manifestEntry = $entry; break; }
+    }
+    if (!$manifestEntry) return ['success' => false, 'error' => 'æ’ä»¶åŒ…ç¼ºå°‘ plugin.json'];
+    if ($rootDir !== null) {
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $entry = str_replace('\\', '/', $zip->getNameIndex($i));
+            if ($entry !== $rootDir . '/' && strpos($entry, $rootDir . '/') !== 0) return ['success' => false, 'error' => 'æ’ä»¶åŒ…åªèƒ½åŒ…å«åŒä¸€ä¸ªæ’ä»¶ç›®å½•'];
+        }
+    }
+    $manifest = json_decode($zip->getFromName($manifestEntry), true);
+    if (!is_array($manifest)) return ['success' => false, 'error' => 'plugin.json æ ¼å¼ä¸æ­£ç¡®'];
+    $pluginName = $rootDir ?: ($manifest['id'] ?? ($manifest['plugin_id'] ?? $fallbackName));
+    $pluginName = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string)$pluginName);
+    $pluginName = trim($pluginName, '._');
+    if ($pluginName === '' || !preg_match('/^[A-Za-z0-9_.-]{2,80}$/', $pluginName)) return ['success' => false, 'error' => 'æ’ä»¶ç›®å½•åæ ¼å¼ä¸æ­£ç¡®'];
+    $files = [];
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $entry = str_replace('\\', '/', $zip->getNameIndex($i));
+        if ($entry === '' || substr($entry, -1) === '/') continue;
+        $rel = $rootDir !== null && strpos($entry, $rootDir . '/') === 0 ? substr($entry, strlen($rootDir) + 1) : $entry;
+        if ($rel === '') continue;
+        if (!pluginSafeRelativePath($rel)) return ['success' => false, 'error' => 'æ’ä»¶åŒ…è·¯å¾„ä¸å®‰å…¨'];
+        $files[] = ['entry' => $entry, 'rel' => $rel];
+    }
+    return ['success' => true, 'plugin_name' => $pluginName, 'files' => $files];
 }
 
 function scanPlugins() {
@@ -482,13 +279,190 @@ function scanPlugins() {
     return $plugins;
 }
 
+function pluginInstalledNames() {
+    $names = [];
+    foreach (scanPlugins() as $plugin) {
+        $names[] = $plugin['name'];
+        $manifest = is_array($plugin['manifest'] ?? null) ? $plugin['manifest'] : [];
+        if (!empty($manifest['id'])) $names[] = (string)$manifest['id'];
+        if (!empty($manifest['plugin_id'])) $names[] = (string)$manifest['plugin_id'];
+    }
+    $names = array_values(array_unique($names));
+    return $names;
+}
+
+function pluginHttpJson($url, $options) {
+    $body = pluginHttpGet($url, 20, $options, ['Accept: application/json']);
+    if ($body === false || $body === '') return null;
+    $json = json_decode($body, true);
+    return is_array($json) ? $json : null;
+}
+
+function pluginHttpGet($url, $timeout, $options, $headers = []) {
+    if (!function_exists('curl_init')) return false;
+    $url = pluginFollowTrustedRedirects($url, $timeout, $options);
+    if (!$url) return false;
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_USERAGENT => 'cx-toolbox-plugin-center',
+        CURLOPT_HTTPHEADER => $headers,
+    ]);
+    $res = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return ($code >= 200 && $code < 300) ? $res : false;
+}
+
+function pluginDownloadFile($url, $target, $options) {
+    if (!function_exists('curl_init')) return ['success' => false, 'error' => 'curl æ‰©å±•æœªå¼€å¯'];
+    $url = pluginFollowTrustedRedirects($url, 20, $options);
+    if (!$url) return ['success' => false, 'error' => 'æ’ä»¶åŒ…åœ°å€ä¸å¯ä¿¡'];
+    $fp = @fopen($target, 'wb');
+    if (!$fp) return ['success' => false, 'error' => 'æ— æ³•å†™å…¥æ’ä»¶åŒ…'];
+    $tooLarge = false;
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_FILE => $fp,
+        CURLOPT_TIMEOUT => 180,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_USERAGENT => 'cx-toolbox-plugin-center',
+        CURLOPT_HTTPHEADER => ['Accept: application/octet-stream'],
+        CURLOPT_NOPROGRESS => false,
+    ]);
+    $progress = function($ch, $downloadTotal, $downloaded, $uploadTotal = 0, $uploaded = 0) use ($options, &$tooLarge) {
+        if (($downloadTotal > 0 && $downloadTotal > $options['max_package_bytes']) || $downloaded > $options['max_package_bytes']) { $tooLarge = true; return 1; }
+        return 0;
+    };
+    if (defined('CURLOPT_XFERINFOFUNCTION')) curl_setopt($ch, CURLOPT_XFERINFOFUNCTION, $progress);
+    elseif (defined('CURLOPT_PROGRESSFUNCTION')) curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, $progress);
+    $ok = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    fclose($fp);
+    if ($tooLarge) return ['success' => false, 'error' => 'æ’ä»¶åŒ…è¶…è¿‡å¤§å°é™åˆ¶'];
+    if (!$ok || $code < 200 || $code >= 300) return ['success' => false, 'error' => 'æ’ä»¶åŒ…ä¸‹è½½å¤±è´¥ï¼š' . ($err ?: 'HTTP ' . $code)];
+    return ['success' => true];
+}
+
+function pluginFollowTrustedRedirects($url, $timeout, $options) {
+    for ($i = 0; $i < 5; $i++) {
+        if (!pluginTrustedUrl($url, $options)) return false;
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_NOBODY => true,
+            CURLOPT_HEADER => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_USERAGENT => 'cx-toolbox-plugin-center',
+        ]);
+        $headers = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($code >= 300 && $code < 400 && preg_match('/^Location:\s*(.+)$/im', (string)$headers, $m)) {
+            $next = trim($m[1]);
+            if (strpos($next, '/') === 0) {
+                $p = parse_url($url);
+                $next = $p['scheme'] . '://' . $p['host'] . $next;
+            }
+            $url = $next;
+            continue;
+        }
+        return pluginTrustedUrl($url, $options) ? $url : false;
+    }
+    return false;
+}
+
+function pluginTrustedUrl($url, $options) {
+    $p = parse_url($url);
+    if (!$p || strtolower($p['scheme'] ?? '') !== 'https') return false;
+    return strtolower($p['host'] ?? '') === $options['endpoint_host'];
+}
+
+function pluginNormalizeHttpsUrl($url) {
+    $parts = parse_url($url);
+    if (!$parts || strtolower($parts['scheme'] ?? '') !== 'https' || empty($parts['host'])) return '';
+    return $url;
+}
+
+function pluginCurrentDomain() {
+    $host = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? '');
+    $host = strtolower(trim((string)$host));
+    return preg_replace('/:\d+$/', '', $host);
+}
+
+function pluginSafeRelativePath($path) {
+    $path = str_replace('\\', '/', (string)$path);
+    if ($path === '' || $path[0] === '/' || strpos($path, "\0") !== false || preg_match('/^[A-Za-z]:\//', $path)) return false;
+    foreach (explode('/', $path) as $part) if ($part === '..') return false;
+    return true;
+}
+
+function pluginPathInside($target, $root) {
+    $root = realpath($root);
+    if (!$root) return false;
+    $dir = dirname($target);
+    while (!is_dir($dir) && dirname($dir) !== $dir) $dir = dirname($dir);
+    $dir = realpath($dir);
+    if (!$dir) return false;
+    return strpos(rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR, rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR) === 0;
+}
+
+function pluginZipEntryIsSymlink($zip, $index) {
+    if (!method_exists($zip, 'getExternalAttributesIndex')) return false;
+    $opsys = 0;
+    $attr = 0;
+    if (!$zip->getExternalAttributesIndex($index, $opsys, $attr)) return false;
+    return ((($attr >> 16) & 0170000) === 0120000);
+}
+
+function pluginSafeName($name) {
+    $name = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string)$name);
+    $name = trim($name, '._');
+    if ($name === '') $name = 'plugin.zip';
+    if (substr(strtolower($name), -4) !== '.zip') $name .= '.zip';
+    return $name;
+}
+
+function pluginFileHeader($file, $len) {
+    $fp = @fopen($file, 'rb');
+    if (!$fp) return '';
+    $data = fread($fp, $len);
+    fclose($fp);
+    return $data;
+}
+
+function pluginUploadError($code) {
+    $messages = [
+        UPLOAD_ERR_INI_SIZE => 'æ–‡ä»¶è¶…è¿‡æœåŠ¡å™¨ä¸Šä¼ é™åˆ¶',
+        UPLOAD_ERR_FORM_SIZE => 'æ–‡ä»¶è¶…è¿‡è¡¨å•ä¸Šä¼ é™åˆ¶',
+        UPLOAD_ERR_PARTIAL => 'æ–‡ä»¶ä¸Šä¼ ä¸å®Œæ•´',
+        UPLOAD_ERR_NO_FILE => 'æœªé€‰æ‹©æ–‡ä»¶',
+        UPLOAD_ERR_NO_TMP_DIR => 'æœåŠ¡å™¨ä¸´æ—¶ç›®å½•ç¼ºå¤±',
+        UPLOAD_ERR_CANT_WRITE => 'æœåŠ¡å™¨æ— æ³•å†™å…¥æ–‡ä»¶',
+    ];
+    return $messages[$code] ?? ('ä¸Šä¼ å¤±è´¥ï¼Œé”™è¯¯ç  ' . $code);
+}
+
 function deleteDir($dir) {
     if (!is_dir($dir)) return false;
-    $items = scandir($dir);
-    foreach ($items as $item) {
+    foreach (scandir($dir) as $item) {
         if ($item === '.' || $item === '..') continue;
         $path = $dir . '/' . $item;
-        if (is_dir($path)) deleteDir($path);
+        if (is_dir($path) && !is_link($path)) deleteDir($path);
         else @unlink($path);
     }
     return @rmdir($dir);
