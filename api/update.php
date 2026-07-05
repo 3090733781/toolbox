@@ -87,7 +87,7 @@ function handle_update(&$result, $source, $query, $cfg, $key) {
         return;
     }
 
-    $plan = updateBuildZipPlan($downloadPath, $root, $options, !empty($input['allow_same_version']));
+    $plan = updateBuildZipPlan($downloadPath, $root, $options, !empty($input['allow_same_version']), $manifest['version'] ?? '');
     if (!$plan['success']) {
         $result['error'] = $plan['error'];
         return;
@@ -150,18 +150,14 @@ function updateNormalizeHttpsUrl($url) {
 }
 
 function updateFetchManifest($options, $root) {
-    $currentVersion = '';
-    $versionFile = $root . DIRECTORY_SEPARATOR . 'version.json';
-    if (is_file($versionFile)) {
-        $version = json_decode(file_get_contents($versionFile), true);
-        $currentVersion = $version['version'] ?? '';
-    }
+    $currentVersion = updateCurrentVersion($root);
 
     $sep = strpos($options['endpoint'], '?') === false ? '?' : '&';
     $url = $options['endpoint'] . $sep . http_build_query([
         'application' => $options['app'],
         'channel' => $options['channel'],
         'current_version' => $currentVersion,
+        'domain' => updateCurrentDomain(),
     ]);
     $manifest = updateHttpJson($url, $options);
     if (!$manifest || !is_array($manifest)) {
@@ -172,7 +168,22 @@ function updateFetchManifest($options, $root) {
     }
     $valid = updateValidateManifest($manifest, $options);
     if (!$valid['success']) return $valid;
+    $versionCheck = updateCheckManifestVersion($currentVersion, $manifest['version'] ?? '');
+    if (!$versionCheck['success']) return $versionCheck;
     return ['success' => true, 'data' => $manifest];
+}
+
+function updateCurrentVersion($root) {
+    $versionFile = $root . DIRECTORY_SEPARATOR . 'version.json';
+    if (!is_file($versionFile)) return '';
+    $version = json_decode(file_get_contents($versionFile), true);
+    return is_array($version) ? trim((string)($version['version'] ?? '')) : '';
+}
+
+function updateCurrentDomain() {
+    $host = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? '');
+    $host = strtolower(trim((string)$host));
+    return preg_replace('/:\d+$/', '', $host);
 }
 
 function updateValidateManifest($manifest, $options) {
@@ -342,7 +353,7 @@ function updateIsTrustedPackageUrl($url, $options) {
     return strtolower($p['host'] ?? '') === $options['endpoint_host'];
 }
 
-function updateBuildZipPlan($zipFile, $root, $options, $allowSameVersion) {
+function updateBuildZipPlan($zipFile, $root, $options, $allowSameVersion, $expectedVersion) {
     if (!class_exists('ZipArchive')) {
         return ['success' => false, 'error' => 'ZipArchive extension required'];
     }
@@ -388,6 +399,10 @@ function updateBuildZipPlan($zipFile, $root, $options, $allowSameVersion) {
     $zip->close();
 
     if (!$files) return ['success' => false, 'error' => 'zip contains no applicable files'];
+    if (!$newVersion) return ['success' => false, 'error' => 'package missing version.json'];
+    if ($expectedVersion !== '' && $newVersion !== $expectedVersion) {
+        return ['success' => false, 'error' => 'package version mismatch: ' . $newVersion . ' != ' . $expectedVersion];
+    }
     $versionCheck = updateCheckVersionIncrease($root, $newVersion, $allowSameVersion);
     if (!$versionCheck['success']) return $versionCheck;
 
@@ -463,13 +478,17 @@ function updateRollback($root, $backupDir, $manifest) {
 
 function updateCheckVersionIncrease($root, $newVersion, $allowSameVersion) {
     if (!$newVersion || $allowSameVersion) return ['success' => true];
-    $versionFile = $root . DIRECTORY_SEPARATOR . 'version.json';
-    if (!is_file($versionFile)) return ['success' => true];
-    $current = json_decode(file_get_contents($versionFile), true);
-    $currentVersion = $current['version'] ?? '';
-    if ($currentVersion && preg_match('/^\d+(?:\.\d+){1,3}$/', $currentVersion) && preg_match('/^\d+(?:\.\d+){1,3}$/', $newVersion)) {
+    return updateCheckManifestVersion(updateCurrentVersion($root), $newVersion, 'package version is not newer');
+}
+
+function updateCheckManifestVersion($currentVersion, $newVersion, $message = 'remote version is not newer') {
+    $currentVersion = trim((string)$currentVersion);
+    $newVersion = trim((string)$newVersion);
+    if ($newVersion === '') return ['success' => false, 'error' => 'missing remote version'];
+    if ($currentVersion === '') return ['success' => true];
+    if (preg_match('/^\d+(?:\.\d+){1,3}$/', $currentVersion) && preg_match('/^\d+(?:\.\d+){1,3}$/', $newVersion)) {
         if (version_compare($newVersion, $currentVersion, '<=')) {
-            return ['success' => false, 'error' => 'package version is not newer: ' . $newVersion . ' <= ' . $currentVersion];
+            return ['success' => false, 'error' => $message . ': ' . $newVersion . ' <= ' . $currentVersion];
         }
     }
     return ['success' => true];
