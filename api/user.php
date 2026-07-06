@@ -66,39 +66,35 @@ function handle_user(&$result, $source, $query, $cfg, $key) {
                 $stmt->execute([$newHash, $row['id']]);
             }
             
-            @session_start(); $_SESSION['admin'] = true; $_SESSION['user_id'] = $row['id']; $_SESSION['username'] = $row['username']; $_SESSION['role'] = $row['role'];
+            if (!toolbox_session_start()) {
+                $result['error'] = 'session start failed';
+                return;
+            }
+            toolbox_session_regenerate();
+            $_SESSION['admin'] = true;
+            $_SESSION['user_id'] = $row['id'];
+            $_SESSION['username'] = $row['username'];
+            $_SESSION['role'] = $row['role'];
             
             // 增加会话安全配置
-            ini_set('session.cookie_httponly', 1);
-            ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on');
-            ini_set('session.cookie_samesite', 'Strict');
-            session_regenerate_id(true); // 防止会话固定攻击
             
             $result['success'] = true; $result['data'] = ['username' => $row['username'], 'role' => $row['role']];
             return;
 
         case 'user_logout':
-            @session_start(); $_SESSION = []; 
-            if (ini_get("session.use_cookies")) {
-                $params = session_get_cookie_params();
-                setcookie(session_name(), '', time() - 42000,
-                    $params["path"], $params["domain"],
-                    $params["secure"], $params["httponly"]
-                );
-            }
-            session_destroy(); 
+            toolbox_session_destroy(); 
             $result['success'] = true; 
             return;
 
         case 'user_info':
-            @session_start(); if (empty($_SESSION['admin'])) { $result['error'] = '未登录'; return; }
+            toolbox_session_start(); if (empty($_SESSION['admin'])) { $result['error'] = '未登录'; return; }
             $pdo = dbConnect(); if (!$pdo) { $result['error'] = '数据库连接失败'; return; }
             $stmt = $pdo->prepare("SELECT id, username, role, api_key, created_at FROM users WHERE id = ?"); $stmt->execute([$_SESSION['user_id']]);
             $row = $stmt->fetch(); if (!$row) { $result['error'] = '用户不存在'; return; }
             $result['success'] = true; $result['data'] = $row; return;
 
         case 'user_api_key':
-            @session_start(); if (empty($_SESSION['admin'])) { $result['error'] = '未登录'; return; }
+            toolbox_session_start(); if (empty($_SESSION['admin'])) { $result['error'] = '未登录'; return; }
             $pdo = dbConnect(); if (!$pdo) { $result['error'] = '数据库连接失败'; return; }
             try { $pdo->exec("ALTER TABLE users ADD COLUMN api_key VARCHAR(64) DEFAULT NULL"); } catch (Exception $e) {}
             $input = json_decode(file_get_contents('php://input'), true);
@@ -112,12 +108,12 @@ function handle_user(&$result, $source, $query, $cfg, $key) {
             $result['success'] = true; $result['data'] = ['api_key' => $key]; return;
 
         case 'user_list':
-            @session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'permission denied'; return; }
+            toolbox_session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'permission denied'; return; }
             $pdo = dbConnect(); if (!$pdo) { $result['error'] = '数据库连接失败'; return; }
             $stmt = $pdo->query("SELECT id, username, role, created_at FROM users ORDER BY id"); $result['success'] = true; $result['data'] = $stmt->fetchAll(); return;
 
         case 'user_delete':
-            @session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'permission denied'; return; }
+            toolbox_session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'permission denied'; return; }
             $id = intval($_GET['id'] ?? 0); if ($id <= 0) { $result['error'] = '无效用户'; return; }
             if ($id === $_SESSION['user_id']) { $result['error'] = '不能删除自己'; return; }
             $pdo = dbConnect(); if (!$pdo) { $result['error'] = '数据库连接失败'; return; }

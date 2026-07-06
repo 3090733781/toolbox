@@ -35,7 +35,7 @@ function handle_category(&$result, $source, $query, $cfg, $key) {
             return;
 
         case 'cat_mode':
-            @session_start();
+            toolbox_session_start();
             if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = '无权限'; return; }
             $input = json_decode(file_get_contents('php://input'), true);
             $id = intval($input['id'] ?? 0);
@@ -47,7 +47,7 @@ function handle_category(&$result, $source, $query, $cfg, $key) {
             return;
 
         case 'cat_batch_mode':
-            @session_start();
+            toolbox_session_start();
             if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = '无权限'; return; }
             $input = json_decode(file_get_contents('php://input'), true);
             $mode = $input['mode'] ?? 'list';

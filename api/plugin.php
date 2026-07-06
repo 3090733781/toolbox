@@ -59,7 +59,7 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
 }
 
 function pluginRequireAdmin(&$result) {
-    @session_start();
+    toolbox_session_start();
     if (empty($_SESSION['admin']) || ($_SESSION['role'] ?? '') !== 'admin') {
         $result['error'] = '没有管理员权限';
         return false;

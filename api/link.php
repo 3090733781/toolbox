@@ -17,7 +17,7 @@ function handle_link(&$result, $source, $query, $cfg, $key) {
             return;
 
         case 'link_add':
-            @session_start();
+            toolbox_session_start();
             if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = '无权限'; return; }
             $input = json_decode(file_get_contents('php://input'), true);
             $name = trim($input['name'] ?? '');
@@ -31,7 +31,7 @@ function handle_link(&$result, $source, $query, $cfg, $key) {
             return;
 
         case 'link_delete':
-            @session_start();
+            toolbox_session_start();
             if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = '无权限'; return; }
             $id = intval($_GET['id'] ?? -1);
             $links = link_storage();

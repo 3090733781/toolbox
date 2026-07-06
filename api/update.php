@@ -1,6 +1,6 @@
 <?php
 function handle_update(&$result, $source, $query, $cfg, $key) {
-    @session_start();
+    toolbox_session_start();
     if (empty($_SESSION['admin']) || ($_SESSION['role'] ?? '') !== 'admin') {
         $result['error'] = 'permission denied';
         return;

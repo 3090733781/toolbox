@@ -1,10 +1,11 @@
-<?php @session_start();
+<?php require_once __DIR__ . '/../includes/session.php';
+toolbox_session_start();
 $cfgFile = __DIR__ . '/../config.json';
 if (file_exists($cfgFile)) { $cfg = json_decode(file_get_contents($cfgFile), true); if (!file_exists(__DIR__ . '/../install/install.lock')) { header('Location: ../install/'); exit; } } else { header('Location: ../install/'); exit; }
 
 // 退出登录
 $p = $_GET['p'] ?? 'dashboard';
-if ($p === 'logout') { $_SESSION = []; session_destroy(); header('Location: ../'); exit; }
+if ($p === 'logout') { $_SESSION = []; toolbox_session_destroy(); header('Location: ../'); exit; }
 
 // 管理员跳转 admin 目录
 $role = $_SESSION['role'] ?? '';

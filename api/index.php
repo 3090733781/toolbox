@@ -3,6 +3,7 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../error.log');
+require_once __DIR__ . '/../includes/session.php';
 
 function loadConfig() {
     $fp = __DIR__ . '/../config.json';
@@ -23,7 +24,7 @@ function dbConnect() {
 }
 
 function authUser() {
-    @session_start();
+    toolbox_session_start();
     if (!empty($_SESSION['user_id'])) return $_SESSION;
     $key = $_GET['key'] ?? $_SERVER['HTTP_X_API_KEY'] ?? '';
     if ($key) {

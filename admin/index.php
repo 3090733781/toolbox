@@ -1,5 +1,6 @@
 <?php
-@session_start();
+require_once __DIR__ . '/../includes/session.php';
+toolbox_session_start();
 
 $cfgFile = __DIR__ . '/../config.json';
 if (file_exists($cfgFile)) {
@@ -15,7 +16,7 @@ if (file_exists($cfgFile)) {
 $p = $_GET['p'] ?? 'dashboard';
 if ($p === 'logout') {
     $_SESSION = [];
-    session_destroy();
+    toolbox_session_destroy();
     header('Location: ../');
     exit;
 }

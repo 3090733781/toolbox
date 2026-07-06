@@ -22,7 +22,7 @@ function handle_message(&$result, $source, $query, $cfg, $key) {
             return;
 
         case 'msg_delete':
-            @session_start();
+            toolbox_session_start();
             if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = '无权限'; return; }
             $id = intval($_GET['id'] ?? 0);
             if ($id <= 0) { $result['error'] = '无效ID'; return; }

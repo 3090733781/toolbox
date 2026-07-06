@@ -6,15 +6,15 @@ function handle_admin(&$result, $source, $query, $cfg, $key) {
             $input = json_decode(file_get_contents('php://input'), true);
             $pwd = $input['password'] ?? ''; $hash = $cfg['password_hash'] ?? '';
             if (!$hash) { $result['success'] = true; $result['data'] = ['need_setup' => true]; return; }
-            if (password_verify($pwd, $hash)) { @session_start(); $_SESSION['admin'] = true; $result['success'] = true; }
+            if (password_verify($pwd, $hash)) { toolbox_session_start(); toolbox_session_regenerate(); $_SESSION['admin'] = true; $_SESSION['role'] = 'admin'; $result['success'] = true; }
             else { $result['error'] = 'ÃÜÂë´íÎó'; }
             return;
 
         case 'admin_check':
-            @session_start(); $result['success'] = !empty($_SESSION['admin']); return;
+            toolbox_session_start(); $result['success'] = !empty($_SESSION['admin']); return;
 
         case 'admin_logout':
-            @session_start(); $_SESSION = []; 
+            toolbox_session_start(); $_SESSION = []; 
             if (ini_get("session.use_cookies")) {
                 $params = session_get_cookie_params();
                 setcookie(session_name(), '', time() - 42000,
@@ -22,12 +22,12 @@ function handle_admin(&$result, $source, $query, $cfg, $key) {
                     $params["secure"], $params["httponly"]
                 );
             }
-            session_destroy(); 
+            toolbox_session_destroy(); 
             $result['success'] = true; 
             return;
 
         case 'admin_save':
-            @session_start(); $cfg = loadConfig();
+            toolbox_session_start(); $cfg = loadConfig();
             $rawBody = file_get_contents('php://input'); $input = json_decode($rawBody, true);
             if (!$input) { $result['error'] = 'invalid data'; return; }
             
@@ -91,7 +91,7 @@ function handle_admin(&$result, $source, $query, $cfg, $key) {
             $result['success'] = true; return;
 
         case 'admin_files':
-            @session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'permission denied'; return; }
+            toolbox_session_start(); if (empty($_SESSION['admin']) || $_SESSION['role'] !== 'admin') { $result['error'] = 'permission denied'; return; }
             $pdo = dbConnect(); if (!$pdo) { $result['error'] = 'Êý¾Ý¿âÁ¬½ÓÊ§°Ü'; return; }
             try {
                 $pdo->exec("CREATE TABLE IF NOT EXISTS `files` (`id` INT AUTO_INCREMENT PRIMARY KEY, `name` VARCHAR(255) NOT NULL, `size` BIGINT NOT NULL DEFAULT 0, `type` VARCHAR(100), `uploaded_at` DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
