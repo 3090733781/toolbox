@@ -84,7 +84,7 @@ $key = $cfg['amap_key'] ?? '';
 $result = ['source' => $source, 'success' => false, 'data' => [], 'error' => null];
 
 // 校验API权限
-$adminSources = ['user_delete', 'user_list', 'plugin_delete', 'plugin_install', 'plugin_center_list', 'plugin_center_install', 'cat_add', 'cat_delete', 'cat_mode', 'cat_batch_mode', 'link_add', 'link_delete', 'admin_files', 'update_check', 'update_apply'];
+$adminSources = ['user_delete', 'user_list', 'plugin_delete', 'plugin_install', 'plugin_center_list', 'plugin_center_install', 'plugin_center_update', 'cat_add', 'cat_delete', 'cat_mode', 'cat_batch_mode', 'link_add', 'link_delete', 'admin_files', 'update_check', 'update_apply'];
 $userSources = ['file_upload', 'file_upload_array', 'file_delete', 'file_download', 'user_logout', 'user_info', 'user_api_key'];
 
 if (in_array($source, $adminSources)) {
@@ -115,7 +115,7 @@ $moduleMap = [
     'admin_login' => 'admin', 'admin_check' => 'admin', 'admin_logout' => 'admin', 'admin_save' => 'admin', 'admin_files' => 'admin',
     'update_check' => 'update', 'update_apply' => 'update',
     'msg_add' => 'message', 'msg_list' => 'message', 'msg_delete' => 'message',
-    'plugin_list' => 'plugin', 'plugin_delete' => 'plugin', 'plugin_install' => 'plugin', 'plugin_center_list' => 'plugin', 'plugin_center_install' => 'plugin',
+    'plugin_list' => 'plugin', 'plugin_delete' => 'plugin', 'plugin_install' => 'plugin', 'plugin_center_list' => 'plugin', 'plugin_center_install' => 'plugin', 'plugin_center_update' => 'plugin',
     'cat_list' => 'category', 'cat_add' => 'category', 'cat_delete' => 'category', 'cat_mode' => 'category', 'cat_batch_mode' => 'category',
     'link_list' => 'link', 'link_add' => 'link', 'link_delete' => 'link',
     'market_list' => 'market',

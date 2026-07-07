@@ -8,6 +8,8 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
 
         case 'plugin_delete':
             if (!pluginRequireAdmin($result)) return;
+            if (!pluginRequireCsrf($result)) return;
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = '必须使用 POST 请求'; return; }
             $name = basename($_GET['name'] ?? '');
             if ($name === '') { $result['error'] = '缺少插件名称'; return; }
             $pluginDir = __DIR__ . '/../plugins/' . $name;
@@ -19,6 +21,7 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
 
         case 'plugin_install':
             if (!pluginRequireAdmin($result)) return;
+            if (!pluginRequireCsrf($result)) return;
             if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_FILES['file'])) {
                 $result['error'] = '请上传插件 ZIP 包';
                 return;
@@ -33,9 +36,13 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
             if (!pluginRequireAdmin($result)) return;
             $listed = pluginCenterFetchList($cfg);
             if (!$listed['success']) { $result['error'] = $listed['error']; return; }
-            $installed = pluginInstalledNames();
+            $installed = pluginInstalledMap();
             foreach ($listed['data'] as &$plugin) {
-                $plugin['installed'] = in_array($plugin['plugin_id'] ?? '', $installed, true);
+                $local = pluginFindInstalled($plugin['plugin_id'] ?? '', $installed);
+                $plugin['installed'] = $local !== null;
+                $plugin['installed_name'] = $local['name'] ?? '';
+                $plugin['installed_version'] = $local['version'] ?? '';
+                $plugin['update_available'] = $local && version_compare((string)($plugin['version'] ?? '0'), (string)($local['version'] ?? '0'), '>');
             }
             unset($plugin);
             $result['success'] = true;
@@ -45,12 +52,27 @@ function handle_plugin(&$result, $source, $query, $cfg, $key) {
 
         case 'plugin_center_install':
             if (!pluginRequireAdmin($result)) return;
+            if (!pluginRequireCsrf($result)) return;
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = '必须使用 POST 请求'; return; }
             $input = pluginJsonDecode(file_get_contents('php://input'));
             if (!is_array($input)) $input = [];
             $pluginId = trim($input['id'] ?? '');
             if ($pluginId === '') { $result['error'] = '缺少插件编号'; return; }
-            $installed = pluginCenterInstall($cfg, $pluginId);
+            $installed = pluginCenterInstall($cfg, $pluginId, !empty($input['update']));
+            if (!$installed['success']) { $result['error'] = $installed['error']; return; }
+            $result['success'] = true;
+            $result['data'] = $installed['data'];
+            return;
+
+        case 'plugin_center_update':
+            if (!pluginRequireAdmin($result)) return;
+            if (!pluginRequireCsrf($result)) return;
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { $result['error'] = '必须使用 POST 请求'; return; }
+            $input = pluginJsonDecode(file_get_contents('php://input'));
+            if (!is_array($input)) $input = [];
+            $pluginId = trim($input['id'] ?? '');
+            if ($pluginId === '') { $result['error'] = '缺少插件编号'; return; }
+            $installed = pluginCenterInstall($cfg, $pluginId, true);
             if (!$installed['success']) { $result['error'] = $installed['error']; return; }
             $result['success'] = true;
             $result['data'] = $installed['data'];
@@ -62,6 +84,17 @@ function pluginRequireAdmin(&$result) {
     toolbox_session_start();
     if (empty($_SESSION['admin']) || ($_SESSION['role'] ?? '') !== 'admin') {
         $result['error'] = '没有管理员权限';
+        return false;
+    }
+    return true;
+}
+
+function pluginRequireCsrf(&$result) {
+    toolbox_session_start();
+    $expected = $_SESSION['plugin_csrf'] ?? '';
+    $provided = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_POST['csrf'] ?? '');
+    if (!is_string($expected) || $expected === '' || !is_string($provided) || !hash_equals($expected, $provided)) {
+        $result['error'] = 'CSRF token invalid';
         return false;
     }
     return true;
@@ -109,7 +142,7 @@ function pluginCenterFetchList($cfg) {
     return $result;
 }
 
-function pluginCenterInstall($cfg, $id) {
+function pluginCenterInstall($cfg, $id, $update = false) {
     $listed = pluginCenterFetchList($cfg);
     if (!$listed['success']) return $listed;
     $target = null;
@@ -118,8 +151,15 @@ function pluginCenterInstall($cfg, $id) {
     }
     if (!$target) return ['success' => false, 'error' => '插件中心没有这个插件'];
     $pid = $target['plugin_id'] ?? '';
-    if ($pid !== '' && in_array($pid, pluginInstalledNames(), true)) {
-        return ['success' => false, 'error' => '插件已安装，如需升级请先卸载旧版本'];
+    $local = pluginFindInstalled($pid);
+    if ($local && !$update) {
+        return ['success' => false, 'error' => '插件已安装，如需升级请点击更新'];
+    }
+    if ($update && !$local) {
+        return ['success' => false, 'error' => '本地未安装该插件，无法更新'];
+    }
+    if ($update && $local && !version_compare((string)($target['version'] ?? '0'), (string)($local['version'] ?? '0'), '>')) {
+        return ['success' => false, 'error' => '当前插件已是最新版本'];
     }
     $options = pluginCenterOptions($cfg);
     $tmpDir = __DIR__ . '/../release_updates/plugin_center';
@@ -133,7 +173,7 @@ function pluginCenterInstall($cfg, $id) {
         @unlink($tmpFile);
         return ['success' => false, 'error' => '插件包 SHA256 校验失败'];
     }
-    $installed = pluginInstallZip($tmpFile, $pid ?: pathinfo($fileName, PATHINFO_FILENAME));
+    $installed = pluginInstallZip($tmpFile, $pid ?: pathinfo($fileName, PATHINFO_FILENAME), $update, $local['name'] ?? null, $pid, (string)($target['version'] ?? ''));
     if (!$installed['success']) return $installed;
     $installed['data']['remote'] = [
         'plugin_id' => $target['plugin_id'] ?? '',
@@ -190,7 +230,7 @@ function pluginValidateRemoteManifest($manifest, $options) {
     return ['success' => true];
 }
 
-function pluginInstallZip($zipFile, $fallbackName) {
+function pluginInstallZip($zipFile, $fallbackName, $replaceExisting = false, $targetName = null, $expectedPluginId = '', $expectedVersion = '') {
     if (!class_exists('ZipArchive')) return ['success' => false, 'error' => '服务器未开启 ZipArchive 扩展'];
     $pluginsDir = realpath(__DIR__ . '/../plugins');
     if (!$pluginsDir) {
@@ -202,22 +242,34 @@ function pluginInstallZip($zipFile, $fallbackName) {
     if ($zip->open($zipFile) !== true) return ['success' => false, 'error' => '无法打开插件包'];
     $scan = pluginScanZip($zip, $fallbackName);
     if (!$scan['success']) { $zip->close(); return $scan; }
-    $pluginName = $scan['plugin_name'];
+    if ($expectedPluginId !== '' && !pluginManifestMatchesId($scan['manifest'] ?? [], $expectedPluginId, $scan['plugin_name'])) {
+        $zip->close();
+        return ['success' => false, 'error' => '插件包标识与要更新的插件不一致'];
+    }
+    $pluginName = $targetName !== null ? pluginSafeDirectoryName($targetName) : $scan['plugin_name'];
+    if ($pluginName === '') { $zip->close(); return ['success' => false, 'error' => '插件目录名格式不正确']; }
     $targetDir = $pluginsDir . DIRECTORY_SEPARATOR . $pluginName;
-    if (is_dir($targetDir)) { $zip->close(); return ['success' => false, 'error' => '插件 ' . $pluginName . ' 已存在']; }
-    if (!@mkdir($targetDir, 0755, true)) { $zip->close(); return ['success' => false, 'error' => '无法创建插件目录']; }
+    $backupDir = '';
+    if (is_dir($targetDir)) {
+        if (!$replaceExisting) { $zip->close(); return ['success' => false, 'error' => '插件 ' . $pluginName . ' 已存在']; }
+        $backupRoot = __DIR__ . '/../release_updates/plugin_backups';
+        if (!is_dir($backupRoot) && !@mkdir($backupRoot, 0755, true)) { $zip->close(); return ['success' => false, 'error' => '无法创建插件备份目录']; }
+        $backupDir = $backupRoot . '/' . $pluginName . '_' . date('Ymd_His');
+        if (!@rename($targetDir, $backupDir)) { $zip->close(); return ['success' => false, 'error' => '无法备份旧插件目录']; }
+    }
+    if (!@mkdir($targetDir, 0755, true)) { $zip->close(); pluginRollbackInstall($targetDir, $backupDir); return ['success' => false, 'error' => '无法创建插件目录']; }
     foreach ($scan['files'] as $file) {
         $target = $targetDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file['rel']);
-        if (!pluginPathInside($target, $targetDir)) { $zip->close(); deleteDir($targetDir); return ['success' => false, 'error' => '插件包路径不安全']; }
+        if (!pluginPathInside($target, $targetDir)) { $zip->close(); pluginRollbackInstall($targetDir, $backupDir); return ['success' => false, 'error' => '插件包路径不安全']; }
         $dir = dirname($target);
-        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) { $zip->close(); deleteDir($targetDir); return ['success' => false, 'error' => '无法创建插件子目录']; }
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) { $zip->close(); pluginRollbackInstall($targetDir, $backupDir); return ['success' => false, 'error' => '无法创建插件子目录']; }
         $in = $zip->getStream($file['entry']);
         $out = @fopen($target, 'wb');
         if (!$in || !$out) {
             if ($in) fclose($in);
             if ($out) fclose($out);
             $zip->close();
-            deleteDir($targetDir);
+            pluginRollbackInstall($targetDir, $backupDir);
             return ['success' => false, 'error' => '写入插件文件失败'];
         }
         stream_copy_to_stream($in, $out);
@@ -226,10 +278,20 @@ function pluginInstallZip($zipFile, $fallbackName) {
     }
     $zip->close();
     $manifestFile = $targetDir . DIRECTORY_SEPARATOR . 'plugin.json';
-    if (!is_file($manifestFile)) { deleteDir($targetDir); return ['success' => false, 'error' => '插件包缺少 plugin.json']; }
+    if (!is_file($manifestFile)) { pluginRollbackInstall($targetDir, $backupDir); return ['success' => false, 'error' => '插件包缺少 plugin.json']; }
     $manifest = pluginJsonDecode(file_get_contents($manifestFile));
-    if (!is_array($manifest)) { deleteDir($targetDir); return ['success' => false, 'error' => 'plugin.json 格式不正确']; }
-    return ['success' => true, 'data' => ['name' => $pluginName, 'manifest' => $manifest]];
+    if (!is_array($manifest)) { pluginRollbackInstall($targetDir, $backupDir); return ['success' => false, 'error' => 'plugin.json 格式不正确']; }
+    if ($expectedVersion !== '' && (string)($manifest['version'] ?? '') !== $expectedVersion) {
+        pluginRollbackInstall($targetDir, $backupDir);
+        return ['success' => false, 'error' => '插件包版本与更新站版本不一致'];
+    }
+    $data = ['name' => $pluginName, 'manifest' => $manifest, 'updated' => $replaceExisting];
+    if ($backupDir !== '') {
+        $root = realpath(__DIR__ . '/..');
+        $realBackup = realpath($backupDir);
+        $data['backup_dir'] = ($root && $realBackup) ? str_replace('\\', '/', substr($realBackup, strlen($root) + 1)) : $backupDir;
+    }
+    return ['success' => true, 'data' => $data];
 }
 
 function pluginScanZip($zip, $fallbackName) {
@@ -267,7 +329,7 @@ function pluginScanZip($zip, $fallbackName) {
         if (!pluginSafeRelativePath($rel)) return ['success' => false, 'error' => '插件包路径不安全'];
         $files[] = ['entry' => $entry, 'rel' => $rel];
     }
-    return ['success' => true, 'plugin_name' => $pluginName, 'files' => $files];
+    return ['success' => true, 'plugin_name' => $pluginName, 'manifest' => $manifest, 'files' => $files];
 }
 
 function scanPlugins() {
@@ -300,6 +362,30 @@ function pluginInstalledNames() {
         if (!empty($manifest['plugin_id'])) $names[] = (string)$manifest['plugin_id'];
     }
     return array_values(array_unique($names));
+}
+
+function pluginInstalledMap() {
+    $map = [];
+    foreach (scanPlugins() as $plugin) {
+        $manifest = is_array($plugin['manifest'] ?? null) ? $plugin['manifest'] : [];
+        $info = [
+            'name' => (string)($plugin['name'] ?? ''),
+            'version' => (string)($manifest['version'] ?? '0'),
+            'manifest' => $manifest,
+        ];
+        foreach ([$info['name'], $manifest['id'] ?? '', $manifest['plugin_id'] ?? ''] as $key) {
+            $key = trim((string)$key);
+            if ($key !== '') $map[$key] = $info;
+        }
+    }
+    return $map;
+}
+
+function pluginFindInstalled($id, $map = null) {
+    $id = trim((string)$id);
+    if ($id === '') return null;
+    $map = is_array($map) ? $map : pluginInstalledMap();
+    return $map[$id] ?? null;
 }
 
 function pluginHttpJson($url, $options) {
@@ -464,6 +550,28 @@ function pluginSafeName($name) {
     if ($name === '') $name = 'plugin.zip';
     if (substr(strtolower($name), -4) !== '.zip') $name .= '.zip';
     return $name;
+}
+
+function pluginSafeDirectoryName($name) {
+    $name = preg_replace('/[^A-Za-z0-9._-]+/', '_', (string)$name);
+    $name = trim($name, '._');
+    return preg_match('/^[A-Za-z0-9_.-]{2,80}$/', $name) ? $name : '';
+}
+
+function pluginManifestMatchesId($manifest, $expectedId, $pluginName = '') {
+    $expectedId = trim((string)$expectedId);
+    if ($expectedId === '') return true;
+    foreach ([$pluginName, $manifest['id'] ?? '', $manifest['plugin_id'] ?? ''] as $candidate) {
+        if ((string)$candidate === $expectedId) return true;
+    }
+    return false;
+}
+
+function pluginRollbackInstall($targetDir, $backupDir) {
+    if (is_dir($targetDir)) deleteDir($targetDir);
+    if ($backupDir !== '' && is_dir($backupDir) && !is_dir($targetDir)) {
+        @rename($backupDir, $targetDir);
+    }
 }
 
 function pluginFileHeader($file, $len) {
